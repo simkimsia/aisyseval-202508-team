@@ -21,23 +21,54 @@ from typing import List, Dict, Optional, Tuple
 import logging
 from pathlib import Path
 
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class FlexibleConfidenceDetector:
-    def __init__(self, model_name: str = "microsoft/CodeGPT-small-py", device: str = "auto"):
+    def __init__(self, model_name: str = "microsoft/CodeGPT-small-py", device: str = "auto", api_key: Optional[str] = None):
         """
         Initialize with configurable model.
 
         Args:
-            model_name: HuggingFace model name/path
-            device: Device to use ('cuda', 'cpu', or 'auto')
+            model_name: HuggingFace model name/path OR Anthropic model name (claude-3-*)
+            device: Device to use ('cuda', 'cpu', or 'auto') - ignored for API models
+            api_key: API key for Anthropic models (or set ANTHROPIC_API_KEY env var)
         """
         self.model_name = model_name
         self.device = self._setup_device(device)
         self.model = None
         self.tokenizer = None
         self.swebench_data = None
+        self.is_anthropic = self._is_anthropic_model(model_name)
+        self.anthropic_client = None
+
+        if self.is_anthropic:
+            if not ANTHROPIC_AVAILABLE:
+                raise ImportError("anthropic package not available. Install with: pip install anthropic")
+
+            # Initialize Anthropic client
+            api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError("Anthropic API key required. Set ANTHROPIC_API_KEY env var or pass api_key parameter")
+
+            self.anthropic_client = anthropic.Anthropic(api_key=api_key)
+            logger.info(f"Using Anthropic API model: {model_name}")
+        else:
+            logger.info(f"Using HuggingFace model: {model_name}")
+
+    def _is_anthropic_model(self, model_name: str) -> bool:
+        """Check if model name corresponds to an Anthropic model."""
+        anthropic_models = [
+            "claude-3-5-sonnet", "claude-3-5-haiku", "claude-3-opus",
+            "claude-3-sonnet", "claude-3-haiku", "claude-2.1", "claude-2.0"
+        ]
+        return any(model in model_name for model in anthropic_models)
 
     def _setup_device(self, device: str) -> str:
         """Setup device for model."""
@@ -46,26 +77,42 @@ class FlexibleConfidenceDetector:
         return device
 
     def load_model(self):
-        """Load the specified HuggingFace model."""
-        logger.info(f"Loading model: {self.model_name}")
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                device_map=self.device,
-                trust_remote_code=True
-            )
+        """Load the specified model (HuggingFace or verify Anthropic connection)."""
+        if self.is_anthropic:
+            # For Anthropic, just verify the client is working
+            try:
+                # Test API connection with a minimal request
+                response = self.anthropic_client.messages.create(
+                    model=self.model_name,
+                    max_tokens=10,
+                    messages=[{"role": "user", "content": "Hello"}]
+                )
+                logger.info("✅ Anthropic API connection verified")
+                return True
+            except Exception as e:
+                logger.error(f"❌ Failed to connect to Anthropic API: {e}")
+                return False
+        else:
+            # Load HuggingFace model as before
+            logger.info(f"Loading HuggingFace model: {self.model_name}")
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    dtype="auto",  # Let model use its natural dtype (e.g., bfloat16)
+                    device_map=self.device,
+                    trust_remote_code=True
+                )
 
-            # Add pad token if not present
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
+                # Add pad token if not present
+                if self.tokenizer.pad_token is None:
+                    self.tokenizer.pad_token = self.tokenizer.eos_token
 
-            logger.info(f"✅ Model loaded successfully on {self.device}")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Failed to load model: {e}")
-            return False
+                logger.info(f"✅ HuggingFace model loaded successfully on {self.device}")
+                return True
+            except Exception as e:
+                logger.error(f"❌ Failed to load HuggingFace model: {e}")
+                return False
 
     def load_swebench_data(self, split: str = "test"):
         """Load SWE-bench dataset."""
@@ -94,13 +141,42 @@ class FlexibleConfidenceDetector:
         """
         Generate text while extracting token-level logits and confidence scores.
 
+        For Anthropic models, logits are not available, so returns empty lists.
+
         Returns:
             generated_text: The generated text
-            all_logits: Raw logit values for each generated token
-            all_confidences: Probability scores for each generated token
+            all_logits: Raw logit values for each generated token (empty for Anthropic)
+            all_confidences: Probability scores for each generated token (empty for Anthropic)
         """
+        if self.is_anthropic:
+            return self._generate_anthropic(prompt, max_new_tokens)
+        else:
+            return self._generate_transformers(prompt, max_new_tokens)
+
+    def _generate_anthropic(self, prompt: str, max_new_tokens: int) -> Tuple[str, List[float], List[float]]:
+        """Generate text using Anthropic API (no logits available)."""
+        try:
+            response = self.anthropic_client.messages.create(
+                model=self.model_name,
+                max_tokens=max_new_tokens,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0  # For reproducibility in testing
+            )
+
+            generated_text = response.content[0].text
+            logger.info(f"Generated {len(generated_text.split())} words (no token-level data for API models)")
+
+            # Return empty logits/confidence lists since API doesn't provide them
+            return generated_text, [], []
+
+        except Exception as e:
+            logger.error(f"❌ Anthropic generation failed: {e}")
+            return "", [], []
+
+    def _generate_transformers(self, prompt: str, max_new_tokens: int) -> Tuple[str, List[float], List[float]]:
+        """Generate text using HuggingFace transformers with logit extraction."""
         if not self.model or not self.tokenizer:
-            logger.error("Model not loaded")
+            logger.error("HuggingFace model not loaded")
             return "", [], []
 
         # Encode input
@@ -221,8 +297,42 @@ class FlexibleConfidenceDetector:
 
             if result.returncode == 0:
                 logger.info("✅ SWE-bench evaluation completed")
-                success = "PASSED" in result.stdout or "resolved" in result.stdout.lower()
-                return success, result.stdout
+
+                # Look for the results JSON file that contains the evaluation report
+                run_id = f'confidence_test_{instance_id}'
+                results_dir = swebench_path / "logs" / run_id
+                report_file = results_dir / "report.json"
+
+                # Check if evaluation report exists
+                if report_file.exists():
+                    try:
+                        with open(report_file, 'r') as f:
+                            evaluation_report = json.load(f)
+
+                        # Check if instance was resolved according to SWE-bench criteria
+                        if instance_id in evaluation_report:
+                            resolved = evaluation_report[instance_id].get('resolved', False)
+                            logger.info(f"Instance {instance_id} resolved: {resolved}")
+                            return resolved, json.dumps(evaluation_report[instance_id], indent=2)
+                    except (json.JSONDecodeError, IOError) as e:
+                        logger.warning(f"Could not parse evaluation report: {e}")
+
+                # Fallback: check stdout for resolution indicators
+                # Look for specific patterns in the SWE-bench output
+                success_patterns = [
+                    "resolved: True",
+                    "RESOLVED_FULL",
+                    "Instances resolved: 1",
+                    '"resolved": true'
+                ]
+
+                output_lower = result.stdout.lower()
+                for pattern in success_patterns:
+                    if pattern.lower() in output_lower:
+                        return True, result.stdout
+
+                # If no success patterns found, it's likely failed
+                return False, result.stdout
             else:
                 logger.warning(f"⚠️ SWE-bench evaluation issues: {result.stderr}")
                 return False, result.stderr
@@ -240,8 +350,21 @@ class FlexibleConfidenceDetector:
 
     def analyze_confidence_patterns(self, confidences: List[float], generated_text: str, is_correct: bool) -> Dict:
         """Analyze confidence patterns and their relationship to correctness."""
+        # Handle case where no confidence data is available (e.g., API models)
         if not confidences:
-            return {}
+            return {
+                'avg_confidence': None,
+                'min_confidence': None,
+                'max_confidence': None,
+                'confidence_std': None,
+                'is_correct': is_correct,
+                'num_tokens': 0,
+                'security_avg_confidence': None,
+                'security_tokens_found': 0,
+                'confidence_degradation': None,
+                'low_confidence_ratio': None,
+                'has_confidence_data': False
+            }
 
         analysis = {
             'avg_confidence': np.mean(confidences),
@@ -249,7 +372,8 @@ class FlexibleConfidenceDetector:
             'max_confidence': np.max(confidences),
             'confidence_std': np.std(confidences),
             'is_correct': is_correct,
-            'num_tokens': len(confidences)
+            'num_tokens': len(confidences),
+            'has_confidence_data': True
         }
 
         # Security-specific keyword analysis
@@ -345,8 +469,14 @@ Generate a code patch to fix this issue:"""
             analysis = self.analyze_confidence_patterns(confidences, generated_text, is_correct)
 
             # Create insight
-            avg_conf = analysis.get('avg_confidence', 0)
-            if is_correct and avg_conf > 0.7:
+            avg_conf = analysis.get('avg_confidence')
+            if avg_conf is None:
+                # No confidence data available (API model)
+                if is_correct:
+                    insight = "✅ CORRECT (no confidence data - API model)"
+                else:
+                    insight = "❌ INCORRECT (no confidence data - API model)"
+            elif is_correct and avg_conf > 0.7:
                 insight = "✅ HIGH confidence + CORRECT = Reliable generation"
             elif is_correct and avg_conf < 0.5:
                 insight = "🤔 LOW confidence + CORRECT = Lucky guess"
@@ -384,20 +514,25 @@ Generate a code patch to fix this issue:"""
 def main():
     parser = argparse.ArgumentParser(description="Flexible SWE-bench confidence analysis pipeline")
     parser.add_argument("--model", default="microsoft/CodeGPT-small-py",
-                       help="HuggingFace model name/path")
+                       help="HuggingFace model name/path OR Anthropic model (claude-3-*)")
     parser.add_argument("--instances", nargs="+",
                        default=["django__django-10097"],
                        help="SWE-bench instance IDs to process")
     parser.add_argument("--output", help="Output file for results")
     parser.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"],
-                       help="Device to use")
+                       help="Device to use (ignored for API models)")
     parser.add_argument("--max-tokens", type=int, default=150,
                        help="Maximum tokens to generate")
+    parser.add_argument("--api-key", help="API key for Anthropic models (or set ANTHROPIC_API_KEY env var)")
 
     args = parser.parse_args()
 
     # Initialize detector
-    detector = FlexibleConfidenceDetector(model_name=args.model, device=args.device)
+    detector = FlexibleConfidenceDetector(
+        model_name=args.model,
+        device=args.device,
+        api_key=args.api_key
+    )
 
     # Load model and data
     if not detector.load_model():
@@ -422,16 +557,23 @@ def main():
         correct_count = sum(1 for r in results if r['is_correct'])
         logger.info(f"Passed SWE-bench: {correct_count}/{len(results)} ({correct_count/len(results)*100:.1f}%)")
 
-        avg_confidence = np.mean([r['analysis']['avg_confidence'] for r in results])
-        logger.info(f"Average confidence: {avg_confidence:.4f}")
+        # Handle confidence analysis for models with/without confidence data
+        results_with_confidence = [r for r in results if r['analysis'].get('has_confidence_data')]
 
-        # Hypothesis validation
-        high_conf_correct = sum(1 for r in results if r['analysis']['avg_confidence'] > 0.7 and r['is_correct'])
-        low_conf_incorrect = sum(1 for r in results if r['analysis']['avg_confidence'] < 0.5 and not r['is_correct'])
+        if results_with_confidence:
+            avg_confidence = np.mean([r['analysis']['avg_confidence'] for r in results_with_confidence])
+            logger.info(f"Average confidence: {avg_confidence:.4f} ({len(results_with_confidence)} instances with confidence data)")
 
-        logger.info(f"\n🎯 HYPOTHESIS VALIDATION:")
-        logger.info(f"High confidence + correct: {high_conf_correct}")
-        logger.info(f"Low confidence + incorrect: {low_conf_incorrect}")
+            # Hypothesis validation
+            high_conf_correct = sum(1 for r in results_with_confidence if r['analysis']['avg_confidence'] > 0.7 and r['is_correct'])
+            low_conf_incorrect = sum(1 for r in results_with_confidence if r['analysis']['avg_confidence'] < 0.5 and not r['is_correct'])
+
+            logger.info(f"\n🎯 HYPOTHESIS VALIDATION:")
+            logger.info(f"High confidence + correct: {high_conf_correct}")
+            logger.info(f"Low confidence + incorrect: {low_conf_incorrect}")
+        else:
+            logger.info("No confidence data available (API model used)")
+            logger.info("Focus: Test SWE-bench evaluation accuracy")
 
 if __name__ == "__main__":
     main()
