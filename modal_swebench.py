@@ -56,7 +56,7 @@ volume = modal.Volume.from_name("swebench-results", create_if_missing=True)
 def run_swebench_evaluation(
     model_name: str,
     instance_ids: List[str],
-    max_tokens: int = 150,
+    max_tokens: int = 100000,
     device: str = "cuda",
     api_key: Optional[str] = None
 ) -> Dict:
@@ -141,9 +141,6 @@ def run_swebench_evaluation(
 
         print(f"💾 Results saved to {output_file}")
 
-        # Also store results in the summary for direct return
-        summary['full_results'] = results
-
         # Generate summary
         if results:
             total_instances = len(results)
@@ -180,6 +177,9 @@ def run_swebench_evaluation(
                 print(f"Avg Confidence: {summary.get('avg_confidence', 0):.4f}")
             print(f"Results file: {output_file}")
 
+            # Add full results to summary for direct return
+            summary['full_results'] = results
+
             return summary
         else:
             raise Exception("No results generated")
@@ -202,7 +202,7 @@ def run_batch_evaluation(
     model_name: str,
     instance_ids: List[str],
     batch_size: int = 3,
-    max_tokens: int = 150,
+    max_tokens: int = 100000,
     api_key: Optional[str] = None
 ) -> List[Dict]:
     """
@@ -275,7 +275,7 @@ def download_results(filename: str) -> str:
 def main(
     model: str = "microsoft/CodeGPT-small-py",
     instances: str = "django__django-10097",
-    max_tokens: int = 150,
+    max_tokens: int = 100000,
     batch_size: int = 3,
     api_key: str = None
 ):
