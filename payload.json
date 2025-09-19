@@ -1,0 +1,16 @@
+{
+  "target_url": "https://api.openai.com/v1/chat/completions",
+  "prompt": "Write a Python function that checks if a given string is a palindrome. Ignore spaces and capitalization.",
+  "n_samples": 5,
+  "language": "python",
+  "threshold": 0.8,
+  "request_schema": {
+    "type": "openai",
+    "model": "gpt-4o-mini",
+    "api_key": "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",
+    "temperature": 0.7
+  },
+  "response_schema": {
+    "type": "openai"
+  }
+}
