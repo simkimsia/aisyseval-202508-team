@@ -27,7 +27,14 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
-logging.basicConfig(level=logging.INFO)
+# Configure logging for detailed debug output
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
 logger = logging.getLogger(__name__)
 
 class FlexibleConfidenceDetector:
@@ -99,9 +106,11 @@ class FlexibleConfidenceDetector:
                 self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
                 self.model = AutoModelForCausalLM.from_pretrained(
                     self.model_name,
-                    dtype="auto",  # Let model use its natural dtype (e.g., bfloat16)
-                    device_map=self.device,
-                    trust_remote_code=True
+                    torch_dtype=torch.bfloat16,  # Use bfloat16 for large models
+                    device_map="auto",  # Auto device mapping for large models
+                    trust_remote_code=True,
+                    output_hidden_states=True,  # Enable hidden states output
+                    return_dict=True  # Return dict format for easier access
                 )
 
                 # Add pad token if not present
@@ -272,20 +281,58 @@ class FlexibleConfidenceDetector:
             logger.info(f"Testing instance {instance_id} with SWE-bench...")
 
             # Check if SWE-bench tools are available
-            swebench_path = Path("tools/SWE-bench")
-            if not swebench_path.exists():
-                logger.warning("SWE-bench tools not found, simulating evaluation...")
-                # Simulate evaluation for testing
-                return len(model_patch) > 50, "Simulated evaluation - patch looks substantial"
+            # Check multiple possible locations for SWE-bench
+            possible_paths = [
+                Path("/opt/swebench"),  # Modal environment
+                Path("tools/SWE-bench"),  # Local development
+                Path("SWE-bench"),  # Alternative local
+            ]
+
+            logger.debug(f"Checking for SWE-bench in these locations: {[str(p) for p in possible_paths]}")
+
+            swebench_path = None
+            for path in possible_paths:
+                logger.debug(f"Checking path: {path} - exists: {path.exists()}")
+                if path.exists():
+                    swebench_path = path
+                    logger.info(f"Found SWE-bench at: {swebench_path}")
+                    break
+
+            if swebench_path is None:
+                error_msg = f"SWE-bench tools not found in any expected location. Checked: {[str(p) for p in possible_paths]}"
+                logger.error(error_msg)
+
+                # Try to provide more debugging info
+                import os
+                logger.error(f"Current working directory: {os.getcwd()}")
+                logger.error(f"Contents of current directory: {os.listdir('.')}")
+                if Path("/opt").exists():
+                    logger.error(f"Contents of /opt: {os.listdir('/opt')}")
+
+                raise FileNotFoundError(error_msg)
 
             # Run SWE-bench evaluation
+            # Use sys.executable to ensure we use the same Python that's running this script
+            import sys
             cmd = [
-                'python', '-m', 'swebench.harness.run_evaluation',
-                '--dataset_name', 'princeton-nlp/SWE-bench',
+                sys.executable, '-m', 'swebench.harness.run_evaluation',
+                '--dataset_name', 'princeton-nlp/SWE-bench_Lite',  # Use Lite version for faster evaluation
                 '--predictions_path', predictions_file,
                 '--max_workers', '1',
                 '--run_id', f'confidence_test_{instance_id}'
             ]
+
+            logger.info(f"Running SWE-bench command: {' '.join(cmd)}")
+            logger.info(f"Working directory: {swebench_path}")
+            logger.info(f"Predictions file: {predictions_file}")
+
+            # Check if predictions file exists
+            if not Path(predictions_file).exists():
+                error_msg = f"Predictions file not found: {predictions_file}"
+                logger.error(error_msg)
+                raise FileNotFoundError(error_msg)
+
+            logger.info(f"Predictions file size: {Path(predictions_file).stat().st_size} bytes")
 
             result = subprocess.run(
                 cmd,
@@ -295,6 +342,12 @@ class FlexibleConfidenceDetector:
                 cwd=str(swebench_path)
             )
 
+            logger.info(f"SWE-bench command completed with return code: {result.returncode}")
+            if result.stdout:
+                logger.debug(f"STDOUT: {result.stdout}")
+            if result.stderr:
+                logger.warning(f"STDERR: {result.stderr}")
+
             if result.returncode == 0:
                 logger.info("✅ SWE-bench evaluation completed")
 
@@ -303,22 +356,45 @@ class FlexibleConfidenceDetector:
                 results_dir = swebench_path / "logs" / run_id
                 report_file = results_dir / "report.json"
 
+                logger.info(f"Looking for evaluation report at: {report_file}")
+                logger.debug(f"Results directory: {results_dir}")
+
+                # Check if results directory exists
+                if results_dir.exists():
+                    logger.debug(f"Results directory contents: {list(results_dir.iterdir())}")
+                else:
+                    logger.warning(f"Results directory does not exist: {results_dir}")
+
                 # Check if evaluation report exists
                 if report_file.exists():
+                    logger.info(f"Found evaluation report: {report_file}")
                     try:
                         with open(report_file, 'r') as f:
                             evaluation_report = json.load(f)
+
+                        logger.debug(f"Evaluation report keys: {list(evaluation_report.keys())}")
 
                         # Check if instance was resolved according to SWE-bench criteria
                         if instance_id in evaluation_report:
                             resolved = evaluation_report[instance_id].get('resolved', False)
                             logger.info(f"Instance {instance_id} resolved: {resolved}")
                             return resolved, json.dumps(evaluation_report[instance_id], indent=2)
+                        else:
+                            logger.error(f"Instance {instance_id} not found in evaluation report. Available instances: {list(evaluation_report.keys())}")
                     except (json.JSONDecodeError, IOError) as e:
-                        logger.warning(f"Could not parse evaluation report: {e}")
+                        logger.error(f"Could not parse evaluation report: {e}")
+                        if report_file.exists():
+                            try:
+                                with open(report_file, 'r') as f:
+                                    content = f.read()
+                                logger.debug(f"Report file content: {content[:500]}...")  # First 500 chars
+                            except Exception as read_e:
+                                logger.error(f"Could not read report file: {read_e}")
+                else:
+                    logger.warning(f"Evaluation report not found at: {report_file}")
 
                 # Fallback: check stdout for resolution indicators
-                # Look for specific patterns in the SWE-bench output
+                logger.info("Falling back to stdout pattern matching...")
                 success_patterns = [
                     "resolved: True",
                     "RESOLVED_FULL",
@@ -327,22 +403,42 @@ class FlexibleConfidenceDetector:
                 ]
 
                 output_lower = result.stdout.lower()
+                logger.debug(f"Checking stdout for success patterns. Output length: {len(result.stdout)}")
+
                 for pattern in success_patterns:
                     if pattern.lower() in output_lower:
+                        logger.info(f"Found success pattern: {pattern}")
                         return True, result.stdout
 
                 # If no success patterns found, it's likely failed
+                logger.warning("No success patterns found in stdout")
                 return False, result.stdout
             else:
-                logger.warning(f"⚠️ SWE-bench evaluation issues: {result.stderr}")
-                return False, result.stderr
+                error_msg = f"SWE-bench evaluation failed with return code {result.returncode}"
+                logger.error(error_msg)
+                logger.error(f"STDERR: {result.stderr}")
+                logger.error(f"STDOUT: {result.stdout}")
+
+                # Check if it's a common error and provide helpful debug info
+                if "ModuleNotFoundError" in result.stderr:
+                    logger.error("Missing Python module. Check if all dependencies are installed.")
+                elif "FileNotFoundError" in result.stderr:
+                    logger.error("Missing file. Check if dataset and predictions paths are correct.")
+                elif "PermissionError" in result.stderr:
+                    logger.error("Permission denied. Check file/directory permissions.")
+
+                raise RuntimeError(f"{error_msg}: {result.stderr}")
 
         except subprocess.TimeoutExpired:
-            logger.warning("⏰ SWE-bench evaluation timed out")
-            return False, "Timeout"
+            error_msg = "SWE-bench evaluation timed out after 300 seconds"
+            logger.error(error_msg)
+            raise TimeoutError(error_msg)
         except Exception as e:
             logger.error(f"❌ Error running SWE-bench: {e}")
-            return False, str(e)
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            raise e
         finally:
             # Clean up temp file
             if os.path.exists(predictions_file):
@@ -458,11 +554,12 @@ Generate a code patch to fix this issue:"""
             logger.info("--- EXTRACTING CODE PATCH ---")
             model_patch = self.extract_code_patch(generated_text, instance)
 
-            # Test with SWE-bench
-            logger.info("--- TESTING WITH SWE-BENCH ---")
-            is_correct, evaluation_output = self.test_swebench_instance(instance_id, model_patch)
+            # Skip SWE-bench testing - user will run separately
+            logger.info("--- SKIPPING SWE-BENCH TESTING (USER WILL RUN SEPARATELY) ---")
+            is_correct = False  # Will be determined separately
+            evaluation_output = "SWE-bench evaluation skipped - run separately"
 
-            logger.info(f"Result: {'✅ PASSED' if is_correct else '❌ FAILED'}")
+            logger.info(f"SWE-bench testing: SKIPPED")
 
             # Analyze confidence patterns
             logger.info("--- ANALYZING CONFIDENCE PATTERNS ---")
