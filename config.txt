@@ -1,0 +1,11 @@
+
+# Configuration file for Consistency Evaluator Agent
+
+# Set your OpenAI API key here
+OPENAI_API_KEY=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
+
+# Choose which OpenAI model to use
+OPENAI_MODEL=gpt-5
+
+# Port to run the FastAPI server (inside container or locally)
+PORT=8000
