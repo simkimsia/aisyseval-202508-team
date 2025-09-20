@@ -36,6 +36,11 @@ swebench_image = (
             "docker>=6.0.0",
             "scikit-learn>=1.0.0",
             "safetensors>=0.3.0",
+<<<<<<< Updated upstream
+=======
+            "mistral-common>=1.0.0",
+            "huggingface-hub>=0.16.0",
+>>>>>>> Stashed changes
         ]
     )
     # Clone and setup SWE-bench
