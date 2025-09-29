@@ -36,11 +36,8 @@ swebench_image = (
             "docker>=6.0.0",
             "scikit-learn>=1.0.0",
             "safetensors>=0.3.0",
-<<<<<<< Updated upstream
-=======
             "mistral-common>=1.0.0",
             "huggingface-hub>=0.16.0",
->>>>>>> Stashed changes
         ]
     )
     # Clone and setup SWE-bench
@@ -136,6 +133,7 @@ def run_swebench_evaluation(
         results = detector.run_pipeline(
             instance_ids=instance_ids,
             output_file=None,  # We'll handle output manually
+            max_tokens=max_tokens,
         )
 
         # Save results to shared volume AND return results directly
