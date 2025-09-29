@@ -160,8 +160,8 @@ class FlexibleConfidenceDetector:
         """Load Mistral model with specialized tokenizer and system prompt."""
         logger.info(f"Loading Mistral model: {self.model_name}")
         try:
-            from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
             from huggingface_hub import hf_hub_download
+            from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
 
             # Load system prompt from HuggingFace Hub
             try:
@@ -227,7 +227,7 @@ class FlexibleConfidenceDetector:
         return instance
 
     def generate_with_logits(
-        self, prompt: str, max_new_tokens: int = 150
+        self, prompt: str, max_new_tokens: int = 2000
     ) -> Tuple[str, List[float], List[float]]:
         """
         Generate text while extracting token-level logits and confidence scores.
@@ -279,7 +279,10 @@ class FlexibleConfidenceDetector:
             return "", [], []
 
         try:
-            from mistral_common.protocol.instruct.messages import SystemMessage, UserMessage
+            from mistral_common.protocol.instruct.messages import (
+                SystemMessage,
+                UserMessage,
+            )
             from mistral_common.protocol.instruct.request import ChatCompletionRequest
 
             # Create chat format with system prompt
@@ -310,8 +313,8 @@ class FlexibleConfidenceDetector:
                     # Get probabilities
                     probabilities = F.softmax(logits, dim=-1)
 
-                    # Sample next token
-                    next_token = torch.multinomial(probabilities, 1)
+                    # Use greedy decoding for deterministic, higher-quality code generation
+                    next_token = torch.argmax(probabilities, dim=-1, keepdim=True)
                     next_token_id = next_token.item()
 
                     # Store logits and confidence
@@ -329,13 +332,21 @@ class FlexibleConfidenceDetector:
                     eos_token_id = None
                     try:
                         # Try different ways to access EOS token
-                        if hasattr(self.tokenizer, 'instruct_tokenizer'):
-                            if hasattr(self.tokenizer.instruct_tokenizer, 'tokenizer'):
-                                eos_token_id = getattr(self.tokenizer.instruct_tokenizer.tokenizer, 'eos_token_id', None)
+                        if hasattr(self.tokenizer, "instruct_tokenizer"):
+                            if hasattr(self.tokenizer.instruct_tokenizer, "tokenizer"):
+                                eos_token_id = getattr(
+                                    self.tokenizer.instruct_tokenizer.tokenizer,
+                                    "eos_token_id",
+                                    None,
+                                )
                             else:
-                                eos_token_id = getattr(self.tokenizer.instruct_tokenizer, 'eos_token_id', None)
+                                eos_token_id = getattr(
+                                    self.tokenizer.instruct_tokenizer,
+                                    "eos_token_id",
+                                    None,
+                                )
                         else:
-                            eos_token_id = getattr(self.tokenizer, 'eos_token_id', None)
+                            eos_token_id = getattr(self.tokenizer, "eos_token_id", None)
 
                         # Fallback to common EOS token IDs
                         if eos_token_id is None:
@@ -348,47 +359,108 @@ class FlexibleConfidenceDetector:
                     if next_token_id == eos_token_id:
                         break
 
+                    # Early stopping: check if patch appears complete
+                    try:
+                        if hasattr(self.tokenizer, "instruct_tokenizer"):
+                            if hasattr(self.tokenizer.instruct_tokenizer, "tokenizer"):
+                                current_text = (
+                                    self.tokenizer.instruct_tokenizer.tokenizer.decode(
+                                        generated_tokens, skip_special_tokens=True
+                                    )
+                                )
+                            elif hasattr(self.tokenizer.instruct_tokenizer, "decode"):
+                                current_text = self.tokenizer.instruct_tokenizer.decode(
+                                    generated_tokens, skip_special_tokens=True
+                                )
+                            else:
+                                current_text = ""
+                        elif hasattr(self.tokenizer, "decode"):
+                            current_text = self.tokenizer.decode(
+                                generated_tokens, skip_special_tokens=True
+                            )
+                        else:
+                            current_text = ""
+
+                        patch_end_patterns = [
+                            "```\n",
+                            "---END---",
+                            "That's the complete patch",
+                            "\n\n# End of patch",
+                            "\n---\n",
+                        ]
+                        if current_text and any(
+                            pattern in current_text for pattern in patch_end_patterns
+                        ):
+                            logger.info(
+                                f"Early stopping: detected patch completion at token {step}"
+                            )
+                            break
+                    except Exception as e:
+                        logger.debug(f"Could not check for early stopping: {e}")
+
                     # Log progress for debugging
                     if step < 20:  # Only log first 20 tokens
                         try:
                             # Try different ways to decode tokens
                             token_text = None
-                            if hasattr(self.tokenizer, 'instruct_tokenizer'):
-                                if hasattr(self.tokenizer.instruct_tokenizer, 'tokenizer'):
-                                    token_text = self.tokenizer.instruct_tokenizer.tokenizer.decode([next_token_id])
-                                elif hasattr(self.tokenizer.instruct_tokenizer, 'decode'):
-                                    token_text = self.tokenizer.instruct_tokenizer.decode([next_token_id])
-                            elif hasattr(self.tokenizer, 'decode'):
+                            if hasattr(self.tokenizer, "instruct_tokenizer"):
+                                if hasattr(
+                                    self.tokenizer.instruct_tokenizer, "tokenizer"
+                                ):
+                                    token_text = self.tokenizer.instruct_tokenizer.tokenizer.decode(
+                                        [next_token_id]
+                                    )
+                                elif hasattr(
+                                    self.tokenizer.instruct_tokenizer, "decode"
+                                ):
+                                    token_text = (
+                                        self.tokenizer.instruct_tokenizer.decode(
+                                            [next_token_id]
+                                        )
+                                    )
+                            elif hasattr(self.tokenizer, "decode"):
                                 token_text = self.tokenizer.decode([next_token_id])
 
                             if token_text:
-                                logger.info(f"Token {step:2d}: '{token_text}' (conf: {token_confidence:.4f})")
+                                logger.info(
+                                    f"Token {step:2d}: '{token_text}' (conf: {token_confidence:.4f})"
+                                )
                             else:
-                                logger.info(f"Token {step:2d}: ID {next_token_id} (conf: {token_confidence:.4f})")
+                                logger.info(
+                                    f"Token {step:2d}: ID {next_token_id} (conf: {token_confidence:.4f})"
+                                )
                         except Exception:
-                            logger.info(f"Token {step:2d}: ID {next_token_id} (conf: {token_confidence:.4f})")
+                            logger.info(
+                                f"Token {step:2d}: ID {next_token_id} (conf: {token_confidence:.4f})"
+                            )
 
             # Decode generated text
             try:
                 generated_text = None
                 # Try different ways to decode the full text
-                if hasattr(self.tokenizer, 'instruct_tokenizer'):
-                    if hasattr(self.tokenizer.instruct_tokenizer, 'tokenizer'):
-                        generated_text = self.tokenizer.instruct_tokenizer.tokenizer.decode(
-                            generated_tokens, skip_special_tokens=True
+                if hasattr(self.tokenizer, "instruct_tokenizer"):
+                    if hasattr(self.tokenizer.instruct_tokenizer, "tokenizer"):
+                        generated_text = (
+                            self.tokenizer.instruct_tokenizer.tokenizer.decode(
+                                generated_tokens, skip_special_tokens=True
+                            )
                         )
-                    elif hasattr(self.tokenizer.instruct_tokenizer, 'decode'):
+                    elif hasattr(self.tokenizer.instruct_tokenizer, "decode"):
                         generated_text = self.tokenizer.instruct_tokenizer.decode(
                             generated_tokens, skip_special_tokens=True
                         )
-                elif hasattr(self.tokenizer, 'decode'):
+                elif hasattr(self.tokenizer, "decode"):
                     generated_text = self.tokenizer.decode(
                         generated_tokens, skip_special_tokens=True
                     )
 
                 if not generated_text:
-                    logger.warning("Could not decode with standard methods, using fallback")
-                    generated_text = " ".join([str(token) for token in generated_tokens])
+                    logger.warning(
+                        "Could not decode with standard methods, using fallback"
+                    )
+                    generated_text = " ".join(
+                        [str(token) for token in generated_tokens]
+                    )
 
             except Exception as e:
                 logger.warning(f"Decoding error: {e}, using fallback")
@@ -425,8 +497,8 @@ class FlexibleConfidenceDetector:
                 # Get probabilities
                 probabilities = F.softmax(logits, dim=-1)
 
-                # Sample next token (you can also use greedy with argmax)
-                next_token = torch.multinomial(probabilities, 1)
+                # Use greedy decoding for deterministic, higher-quality code generation
+                next_token = torch.argmax(probabilities, dim=-1, keepdim=True)
                 next_token_id = next_token.item()
 
                 # Store logits and confidence
@@ -442,6 +514,23 @@ class FlexibleConfidenceDetector:
 
                 # Stop if EOS token
                 if next_token_id == self.tokenizer.eos_token_id:
+                    break
+
+                # Early stopping: check if patch appears complete
+                current_text = self.tokenizer.decode(
+                    generated_tokens, skip_special_tokens=True
+                )
+                patch_end_patterns = [
+                    "```\n",
+                    "---END---",
+                    "That's the complete patch",
+                    "\n\n# End of patch",
+                    "\n---\n",
+                ]
+                if any(pattern in current_text for pattern in patch_end_patterns):
+                    logger.info(
+                        f"Early stopping: detected patch completion at token {step}"
+                    )
                     break
 
                 # Log progress for debugging
@@ -789,7 +878,7 @@ class FlexibleConfidenceDetector:
         return analysis
 
     def run_pipeline(
-        self, instance_ids: List[str], output_file: Optional[str] = None
+        self, instance_ids: List[str], output_file: Optional[str] = None, max_tokens: int = 2000
     ) -> List[Dict]:
         """
         Run complete pipeline on multiple instances.
@@ -797,6 +886,7 @@ class FlexibleConfidenceDetector:
         Args:
             instance_ids: List of SWE-bench instance IDs to process
             output_file: Optional file to save results
+            max_tokens: Maximum tokens to generate per instance
 
         Returns:
             List of results for each instance
@@ -852,7 +942,7 @@ Generate your patch now:"""
 
             # Generate code with logits
             logger.info("--- GENERATING CODE WITH LOGITS ---")
-            generated_text, logits, confidences = self.generate_with_logits(prompt)
+            generated_text, logits, confidences = self.generate_with_logits(prompt, max_tokens)
 
             if not generated_text:
                 logger.error("Failed to generate code")
@@ -945,7 +1035,7 @@ def main():
         help="Device to use (ignored for API models)",
     )
     parser.add_argument(
-        "--max-tokens", type=int, default=150, help="Maximum tokens to generate"
+        "--max-tokens", type=int, default=2000, help="Maximum tokens to generate"
     )
     parser.add_argument(
         "--api-key",
