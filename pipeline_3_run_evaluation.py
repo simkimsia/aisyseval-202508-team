@@ -85,6 +85,12 @@ class SWEBenchEvaluator:
                 str(self.config.get("max_workers", 1)),
                 "--run_id",
                 run_id,
+                "--namespace",
+                "none",
+                "--force_rebuild",
+                "True",
+                "--cache_level",
+                "none",
             ]
 
             logger.info(f"Running: {' '.join(cmd)}")
@@ -242,6 +248,11 @@ def main():
         type=str,
         help="Path to run directory (e.g., output/claude-sonnet-4-20250514/20250930_0928)",
     )
+    parser.add_argument(
+        "--clean_logs",
+        action="store_true",
+        help="Delete cached logs before running evaluation (forces fresh evaluation)",
+    )
 
     args = parser.parse_args()
 
@@ -249,6 +260,23 @@ def main():
     if not run_dir.exists():
         logger.error(f"Run directory not found: {run_dir}")
         sys.exit(1)
+
+    # Clean logs if requested
+    if args.clean_logs:
+        config_path = run_dir / "config.json"
+        with open(config_path, "r") as f:
+            config = json.load(f)
+
+        run_id = f"{config['model_name'].replace('/', '_')}_{config['timestamp']}"
+        logs_dir = Path("logs/run_evaluation") / run_id
+
+        if logs_dir.exists():
+            logger.info(f"🗑️  Deleting cached logs: {logs_dir}")
+            import shutil
+            shutil.rmtree(logs_dir)
+            logger.info("✅ Cached logs deleted")
+        else:
+            logger.info(f"No cached logs found at {logs_dir}")
 
     # Run evaluation
     evaluator = SWEBenchEvaluator(run_dir)
