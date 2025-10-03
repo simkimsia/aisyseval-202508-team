@@ -2,6 +2,60 @@
 
 Modular, extensible pipeline for evaluating AI models on SWE-bench tasks using mini-swe-agent.
 
+## Installation
+
+can watch this [https://www.loom.com/share/3d419804917347d6aa389529affcb20b](loom) video 🎥 for greater clarity
+
+### Prerequisites
+
+- Python 3.11 or higher (see `.python-version` for recommended version)
+- Docker (for running SWE-bench evaluation harness)
+- API key for your chosen model provider
+
+### Setup Steps
+
+1. **Create and activate virtual environment**
+
+```bash
+# Create venv using Python version from .python-version or higher
+python3.11 -m venv venv
+
+# Activate venv
+source venv/bin/activate  # On macOS/Linux
+# or
+venv\Scripts\activate     # On Windows
+```
+
+2. **Install dependencies**
+
+```bash
+pip install -r requirements_minisweagent.txt
+```
+
+3. **Configure environment variables**
+
+Create a `.env` file in the project root:
+
+```bash
+# For Anthropic models (Claude)
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# For OpenAI models (GPT-4)
+# OPENAI_API_KEY=your_openai_api_key_here
+
+# For other providers, add as needed
+```
+
+**Note:** Running evaluations requires API credits. Monitor your usage and set appropriate cost limits in the configuration.
+
+4. **Verify Docker is running**
+
+```bash
+docker ps
+```
+
+If Docker is not running, start it (e.g., `orbstack start` on macOS with OrbStack).
+
 ## Overview
 
 This pipeline automates the complete evaluation process:
