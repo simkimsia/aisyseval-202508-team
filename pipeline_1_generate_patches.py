@@ -73,6 +73,13 @@ class PatchGenerator:
                 "-o", str(output_paths["trajectory"]),
             ]
 
+            # Add optional parameters
+            if self.config.temperature is not None:
+                cmd.extend(["--temperature", str(self.config.temperature)])
+
+            if self.config.custom_config_path:
+                cmd.extend(["--config", str(self.config.custom_config_path)])
+
             if self.config.exit_immediately:
                 cmd.append("--exit-immediately")
 
