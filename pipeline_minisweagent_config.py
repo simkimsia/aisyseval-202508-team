@@ -206,6 +206,7 @@ class PipelineConfig:
         """Convert config to dictionary for serialization."""
         return {
             "model_name": self.model_name,
+            "provider": self.provider.value if self.provider else "unknown",
             "instance_ids": self.instance_ids,
             "swebench_dataset": self.swebench_dataset,
             "swebench_split": self.swebench_split,
