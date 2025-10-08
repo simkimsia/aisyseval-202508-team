@@ -77,6 +77,20 @@ def main():
         help="Max tokens to generate",
     )
     parser.add_argument(
+        "--temperature",
+        type=float,
+        help="Model temperature (0.0-1.0)",
+    )
+    parser.add_argument(
+        "--top-p",
+        type=float,
+        help="Model top-p sampling (0.0-1.0)",
+    )
+    parser.add_argument(
+        "--custom-config",
+        help="Path to custom mini-swe-agent YAML config",
+    )
+    parser.add_argument(
         "--stages",
         nargs="+",
         choices=["1", "2", "3", "4", "all"],
