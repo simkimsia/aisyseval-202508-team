@@ -122,10 +122,21 @@ class PipelineConfig:
     exit_immediately: bool = True
     use_docker: bool = True
 
+    # Provider detection (auto-populated)
+    provider: Optional[ModelProvider] = None
+
     def __post_init__(self):
         """Validate configuration after initialization."""
         if not isinstance(self.output_base_dir, Path):
             self.output_base_dir = Path(self.output_base_dir)
+
+        # Auto-detect provider from model name
+        self.provider = detect_provider(self.model_name)
+
+    @property
+    def provider_name(self) -> str:
+        """Get the provider name as a string."""
+        return self.provider.value if self.provider else "unknown"
 
     @property
     def run_output_dir(self) -> Path:
@@ -159,8 +170,36 @@ class PipelineConfig:
         for instance_id in self.instance_ids:
             self.instance_output_dir(instance_id).mkdir(parents=True, exist_ok=True)
 
+    def get_required_api_key_name(self) -> str:
+        """
+        Get the required API key environment variable name for the detected provider.
+
+        Returns:
+            Environment variable name (e.g., "ANTHROPIC_API_KEY", "OPENAI_API_KEY")
+        """
+        if self.provider and self.provider != ModelProvider.UNKNOWN:
+            return get_api_key_env_var(self.provider)
+        # Fallback to hardcoded value for backward compatibility
+        return self.api_key_env_var
+
     def get_api_key(self) -> Optional[str]:
-        """Get API key from environment."""
+        """
+        Get API key from environment, using detected provider.
+
+        Tries provider-specific key first, then falls back to ANTHROPIC_API_KEY
+        for backward compatibility.
+
+        Returns:
+            API key string if found, None otherwise
+        """
+        # Try provider-specific key first
+        if self.provider and self.provider != ModelProvider.UNKNOWN:
+            env_var = get_api_key_env_var(self.provider)
+            api_key = os.getenv(env_var)
+            if api_key:
+                return api_key
+
+        # Fallback to hardcoded ANTHROPIC_API_KEY for backward compatibility
         return os.getenv(self.api_key_env_var)
 
     def to_dict(self) -> dict:
