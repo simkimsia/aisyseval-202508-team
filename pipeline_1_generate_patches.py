@@ -275,8 +275,11 @@ def main():
 
     # Check for API key
     if not config.get_api_key():
-        logger.error(f"❌ {config.api_key_env_var} not set")
-        logger.error("Set it in .env file or environment")
+        required_key = config.get_required_api_key_name()
+        logger.error(f"❌ {required_key} not set")
+        logger.error(f"Required for model: {config.model_name}")
+        logger.error("Set it in .env file or environment:")
+        logger.error(f"  export {required_key}=your-api-key-here")
         sys.exit(1)
 
     # Generate patches
