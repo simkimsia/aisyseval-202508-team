@@ -125,6 +125,11 @@ class PipelineConfig:
     # Provider detection (auto-populated)
     provider: Optional[ModelProvider] = None
 
+    # Model parameters (optional)
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    custom_config_path: Optional[Path] = None
+
     def __post_init__(self):
         """Validate configuration after initialization."""
         if not isinstance(self.output_base_dir, Path):
@@ -204,7 +209,7 @@ class PipelineConfig:
 
     def to_dict(self) -> dict:
         """Convert config to dictionary for serialization."""
-        return {
+        base_dict = {
             "model_name": self.model_name,
             "provider": self.provider.value if self.provider else "unknown",
             "instance_ids": self.instance_ids,
@@ -218,6 +223,16 @@ class PipelineConfig:
             "timestamp": self.timestamp,
             "output_dir": str(self.run_output_dir),
         }
+
+        # Add optional model parameters if set
+        if self.temperature is not None:
+            base_dict["temperature"] = self.temperature
+        if self.top_p is not None:
+            base_dict["top_p"] = self.top_p
+        if self.custom_config_path is not None:
+            base_dict["custom_config_path"] = str(self.custom_config_path)
+
+        return base_dict
 
 
 # Convenience function for loading from command line
@@ -238,5 +253,13 @@ def create_config_from_args(args) -> PipelineConfig:
         config.swebench_dataset = args.dataset
     if hasattr(args, 'split') and args.split:
         config.swebench_split = args.split
+
+    # Add optional model parameters
+    if hasattr(args, 'temperature') and args.temperature is not None:
+        config.temperature = args.temperature
+    if hasattr(args, 'top_p') and args.top_p is not None:
+        config.top_p = args.top_p
+    if hasattr(args, 'custom_config') and args.custom_config:
+        config.custom_config_path = Path(args.custom_config)
 
     return config
