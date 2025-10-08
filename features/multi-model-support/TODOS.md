@@ -279,9 +279,9 @@ python run_pipeline.py --model claude-sonnet-4-20250514 --instances django__djan
 
 **Success Criteria**:
 
-- [ ] Optional fields added to config
-- [ ] Default behavior unchanged (None values)
-- [ ] Existing pipeline runs without modification
+- [x] Optional fields added to config
+- [x] Default behavior unchanged (None values)
+- [x] Existing pipeline runs without modification
 
 ---
 
@@ -324,9 +324,9 @@ python run_pipeline.py --model claude-sonnet-4-20250514 --instances django__djan
 
 **Success Criteria**:
 
-- [ ] CLI flags are documented in --help
-- [ ] Flags are parsed into config
-- [ ] Existing runs without flags work identically
+- [x] CLI flags are documented in --help
+- [x] Flags are parsed into config
+- [x] Existing runs without flags work identically
 
 ---
 
@@ -676,8 +676,8 @@ git revert HEAD  # or git reset --hard HEAD~1
 
 ## Progress Tracking
 
-- [ ] Phase 1: Provider Detection (5 steps)
-- [ ] Phase 2: Configuration Options (2 steps)
+- [x] Phase 1: Provider Detection (5 steps)
+- [x] Phase 2: Configuration Options (2 steps)
 - [ ] Phase 3: Stage 1 Integration (2 steps)
 - [ ] Phase 4: OpenRouter Support (2 steps)
 - [ ] Phase 5: Documentation (2 steps)
