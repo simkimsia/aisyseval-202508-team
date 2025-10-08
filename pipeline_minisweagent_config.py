@@ -4,10 +4,94 @@ Centralized configuration for easy modification and extension.
 """
 
 import os
+from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
+
+
+class ModelProvider(Enum):
+    """Supported LLM providers."""
+    ANTHROPIC = "anthropic"
+    OPENAI = "openai"
+    OPENROUTER = "openrouter"
+    GOOGLE = "google"
+    TOGETHER = "together"
+    DEEPSEEK = "deepseek"
+    UNKNOWN = "unknown"
+
+
+def detect_provider(model_name: str) -> ModelProvider:
+    """
+    Detect the provider from a model name.
+
+    Args:
+        model_name: Model identifier (e.g., "claude-sonnet-4-20250514", "gpt-4-turbo")
+
+    Returns:
+        ModelProvider enum value
+
+    Examples:
+        >>> detect_provider("claude-sonnet-4-20250514")
+        ModelProvider.ANTHROPIC
+        >>> detect_provider("gpt-4-turbo")
+        ModelProvider.OPENAI
+        >>> detect_provider("openrouter/anthropic/claude-sonnet-4")
+        ModelProvider.OPENROUTER
+    """
+    model_lower = model_name.lower()
+
+    # Check for explicit provider prefix first
+    if model_lower.startswith("openrouter/"):
+        return ModelProvider.OPENROUTER
+    if model_lower.startswith("anthropic/"):
+        return ModelProvider.ANTHROPIC
+    if model_lower.startswith("openai/"):
+        return ModelProvider.OPENAI
+    if model_lower.startswith("google/") or model_lower.startswith("gemini/"):
+        return ModelProvider.GOOGLE
+    if model_lower.startswith("together/"):
+        return ModelProvider.TOGETHER
+    if model_lower.startswith("deepseek/"):
+        return ModelProvider.DEEPSEEK
+
+    # Check for common model name patterns (without prefix)
+    if model_lower.startswith("claude"):
+        return ModelProvider.ANTHROPIC
+    if model_lower.startswith("gpt-") or model_lower.startswith("o1-") or model_lower.startswith("o3-"):
+        return ModelProvider.OPENAI
+    if model_lower.startswith("gemini"):
+        return ModelProvider.GOOGLE
+
+    return ModelProvider.UNKNOWN
+
+
+def get_api_key_env_var(provider: ModelProvider) -> str:
+    """
+    Get the environment variable name for a provider's API key.
+
+    Args:
+        provider: ModelProvider enum value
+
+    Returns:
+        Environment variable name (e.g., "ANTHROPIC_API_KEY")
+
+    Examples:
+        >>> get_api_key_env_var(ModelProvider.ANTHROPIC)
+        'ANTHROPIC_API_KEY'
+        >>> get_api_key_env_var(ModelProvider.OPENAI)
+        'OPENAI_API_KEY'
+    """
+    env_var_map = {
+        ModelProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
+        ModelProvider.OPENAI: "OPENAI_API_KEY",
+        ModelProvider.OPENROUTER: "OPENROUTER_API_KEY",
+        ModelProvider.GOOGLE: "GOOGLE_API_KEY",
+        ModelProvider.TOGETHER: "TOGETHER_API_KEY",
+        ModelProvider.DEEPSEEK: "DEEPSEEK_API_KEY",
+    }
+    return env_var_map.get(provider, "API_KEY")
 
 
 @dataclass
