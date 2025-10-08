@@ -377,9 +377,9 @@ ls output/claude-sonnet-4-20250514/*/django__django-10914/patch.diff
 
 **Success Criteria**:
 
-- [ ] Temperature is passed when set
-- [ ] Default behavior (no temperature) unchanged
-- [ ] Both modes produce valid patches
+- [x] Temperature is passed when set
+- [x] Default behavior (no temperature) unchanged
+- [x] Both modes produce valid patches
 
 ---
 
@@ -412,9 +412,9 @@ python run_pipeline.py --model claude-sonnet-4-20250514 --instances django__djan
 
 **Success Criteria**:
 
-- [ ] Custom config path is passed when provided
-- [ ] Default behavior (no custom config) unchanged
-- [ ] Feature is available for future use
+- [x] Custom config path is passed when provided
+- [x] Default behavior (no custom config) unchanged
+- [x] Feature is available for future use
 
 ---
 
@@ -444,9 +444,9 @@ cat features/multi-model-support/OPENROUTER_SETUP.md
 
 **Success Criteria**:
 
-- [ ] Documentation created
-- [ ] Clear setup instructions
-- [ ] Example commands provided
+- [x] Documentation created
+- [x] Clear setup instructions
+- [x] Example commands provided
 
 ---
 
@@ -477,9 +477,9 @@ print('✅ OpenRouter detection works')
 
 **Success Criteria**:
 
-- [ ] OpenRouter provider is detected
-- [ ] Correct API key is checked
-- [ ] Pipeline runs if key is available
+- [x] OpenRouter provider is detected
+- [x] Correct API key is checked
+- [x] Pipeline runs if key is available
 
 ---
 
@@ -678,8 +678,8 @@ git revert HEAD  # or git reset --hard HEAD~1
 
 - [x] Phase 1: Provider Detection (5 steps)
 - [x] Phase 2: Configuration Options (2 steps)
-- [ ] Phase 3: Stage 1 Integration (2 steps)
-- [ ] Phase 4: OpenRouter Support (2 steps)
+- [x] Phase 3: Stage 1 Integration (2 steps)
+- [x] Phase 4: OpenRouter Support (2 steps)
 - [ ] Phase 5: Documentation (2 steps)
 - [ ] Phase 6: Testing & Validation (2 steps)
 

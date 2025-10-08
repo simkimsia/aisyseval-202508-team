@@ -87,7 +87,7 @@ def get_api_key_env_var(provider: ModelProvider) -> str:
         ModelProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
         ModelProvider.OPENAI: "OPENAI_API_KEY",
         ModelProvider.OPENROUTER: "OPENROUTER_API_KEY",
-        ModelProvider.GOOGLE: "GOOGLE_API_KEY",
+        ModelProvider.GOOGLE: "GEMINI_API_KEY",
         ModelProvider.TOGETHER: "TOGETHER_API_KEY",
         ModelProvider.DEEPSEEK: "DEEPSEEK_API_KEY",
     }
