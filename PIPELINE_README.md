@@ -40,13 +40,19 @@ Create a `.env` file in the project root:
 # For Anthropic models (Claude)
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
-# For OpenAI models (GPT-4)
-# OPENAI_API_KEY=your_openai_api_key_here
+# For OpenAI models (GPT)
+OPENAI_API_KEY=your_openai_api_key_here
 
-# For other providers, add as needed
+# For Google models (Gemini)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# For OpenRouter (unified API)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```
 
 **Note:** Running evaluations requires API credits. Monitor your usage and set appropriate cost limits in the configuration.
+
+**For detailed provider setup**, see [Multi-Model Guide](features/multi-model-support/MULTI_MODEL_GUIDE.md).
 
 4. **Verify Docker is running**
 
@@ -64,6 +70,10 @@ This pipeline automates the complete evaluation process:
 2. **Create Predictions** - Convert patches to SWE-bench prediction format
 3. **Run Evaluation** - Execute official SWE-bench evaluation harness
 4. **Aggregate Results** - Create comprehensive summaries and analysis
+
+**📖 For comprehensive usage instructions**, see [HOW_TO_USE_PIPELINE.md](HOW_TO_USE_PIPELINE.md).
+
+**🎯 For multi-model support** (Claude, GPT, Gemini, OpenRouter), see [Multi-Model Guide](features/multi-model-support/MULTI_MODEL_GUIDE.md).
 
 ## Directory Structure
 
@@ -115,6 +125,8 @@ python run_pipeline.py \
                django__django-11422
 ```
 
+**See also**: Ready-to-use example scripts in [examples/](examples/) for different providers.
+
 ### Run Individual Stages
 
 ```bash
@@ -136,15 +148,21 @@ python pipeline_4_aggregate_results.py \
   output/claude-sonnet-4-20250514/20250930_0928
 ```
 
-### Run Specific Stages Only
+### Continue from Existing Run
+
+**Important:** `run_pipeline.py` creates a new timestamped directory each time it runs. To continue from an existing Stage 1 run, use the individual stage scripts directly:
 
 ```bash
-# Re-run just evaluation and aggregation
-python run_pipeline.py \
-  --model claude-sonnet-4-20250514 \
-  --instances django__django-10914 \
-  --stages 3 4
+# Find your existing run directory
+ls -lt output/claude-sonnet-4-20250514/
+
+# Continue with remaining stages using that directory
+python pipeline_2_create_predictions.py output/claude-sonnet-4-20250514/20250930_0928
+python pipeline_3_run_evaluation.py output/claude-sonnet-4-20250514/20250930_0928
+python pipeline_4_aggregate_results.py output/claude-sonnet-4-20250514/20250930_0928
 ```
+
+**For detailed usage instructions**, see [HOW_TO_USE_PIPELINE.md](HOW_TO_USE_PIPELINE.md).
 
 ## Configuration
 
@@ -276,30 +294,44 @@ django__django-10914/
 └── consistency.json    # NEW: Consistency check results
 ```
 
-### Supporting New Models
+### Supporting Multiple Models
 
-The pipeline is model-agnostic. To add a new model:
+The pipeline supports multiple AI providers with automatic provider detection:
 
 ```bash
-# OpenAI GPT-4
+# Anthropic Claude
 python run_pipeline.py \
-  --model gpt-4-turbo-2024-04-09 \
+  --model claude-sonnet-4-20250514 \
   --instances django__django-10914
 
-# Mistral
+# OpenAI GPT
 python run_pipeline.py \
-  --model mistralai/Codestral-22B-v0.1 \
+  --model gpt-4-turbo \
+  --instances django__django-10914
+
+# Google Gemini
+python run_pipeline.py \
+  --model gemini/gemini-2.5-pro \
+  --instances django__django-10914
+
+# OpenRouter (unified API)
+python run_pipeline.py \
+  --model openrouter/anthropic/claude-sonnet-4 \
   --instances django__django-10914
 ```
 
 Output will be organized under:
 ```
 output/
-├── gpt-4-turbo-2024-04-09/
+├── claude-sonnet-4-20250514/
 │   └── 20250930_1045/
-└── mistralai_Codestral-22B-v0.1/
-    └── 20250930_1100/
+├── gpt-4-turbo/
+│   └── 20250930_1100/
+└── gemini/gemini-2.5-pro/
+    └── 20250930_1115/
 ```
+
+**For complete model setup and configuration**, see [Multi-Model Guide](features/multi-model-support/MULTI_MODEL_GUIDE.md).
 
 ## Advanced Usage
 
