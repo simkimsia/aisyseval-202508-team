@@ -22,7 +22,7 @@ The pipeline automatically detects the provider from the model name:
 |-------------------|-------------------|------------------|
 | `claude-*` | Anthropic | `ANTHROPIC_API_KEY` |
 | `gpt-*` | OpenAI | `OPENAI_API_KEY` |
-| `gemini-*` | Google | `GOOGLE_API_KEY` |
+| `gemini/*` | Google | `GEMINI_API_KEY` |
 | `openrouter/*` | OpenRouter | `OPENROUTER_API_KEY` |
 
 ### Provider Comparison
@@ -185,25 +185,32 @@ GOOGLE_API_KEY=your-google-api-key
 
 | Model Name | Description | Use Case |
 |------------|-------------|----------|
-| `gemini-pro` | Gemini Pro | General use |
-| `gemini-pro-1.5` | Gemini Pro 1.5 | Latest version |
-| `gemini-ultra` | Gemini Ultra | Maximum capability |
+| `gemini/gemini-2.5-pro` | Gemini 2.5 Pro | Latest and most capable |
+| `gemini/gemini-2.0-flash-exp` | Gemini 2.0 Flash | Fast, experimental |
+| `gemini/gemini-1.5-pro` | Gemini 1.5 Pro | Stable, production-ready |
+| `gemini/gemini-1.5-flash` | Gemini 1.5 Flash | Fast, cost-effective |
 
 #### 4. Example Usage
 
 ```bash
-# Single instance
+# Single instance with latest model
 python run_pipeline.py \
-  --model gemini-pro-1.5 \
+  --model gemini/gemini-2.5-pro \
   --instances django__django-10914 \
-  --stages 1 2 3
+  --stages 1
 
 # With temperature
 python run_pipeline.py \
-  --model gemini-pro \
+  --model gemini/gemini-2.5-pro \
   --instances django__django-10914 \
   --temperature 0.4 \
-  --stages 1
+  --stages 1 2 3
+
+# Multiple instances
+python run_pipeline.py \
+  --model gemini/gemini-1.5-pro \
+  --instances django__django-10914 django__django-10097 \
+  --stages 1 2 3
 ```
 
 #### 5. Cost (Approximate)
@@ -641,7 +648,7 @@ python run_pipeline.py \
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...    # For Claude models
 OPENAI_API_KEY=sk-proj-...      # For GPT models
-GOOGLE_API_KEY=...              # For Gemini models
+GEMINI_API_KEY=...              # For Gemini models
 OPENROUTER_API_KEY=sk-or-v1-... # For OpenRouter
 ```
 
@@ -650,7 +657,7 @@ OPENROUTER_API_KEY=sk-or-v1-... # For OpenRouter
 ```bash
 claude-sonnet-4-20250514               # Anthropic direct
 gpt-4-turbo                            # OpenAI direct
-gemini-pro-1.5                         # Google direct
+gemini/gemini-2.5-pro                  # Google direct
 openrouter/anthropic/claude-sonnet-4   # Via OpenRouter
 openrouter/openai/gpt-4-turbo          # Via OpenRouter
 ```
