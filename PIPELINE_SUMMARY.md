@@ -10,7 +10,9 @@ A complete, modular, and extensible SWE-bench evaluation pipeline with 4 stages:
 2. **`pipeline_1_generate_patches.py`** - Stage 1: Generate patches with mini-swe-agent
 3. **`pipeline_2_create_predictions.py`** - Stage 2: Create SWE-bench predictions
 4. **`pipeline_3_run_evaluation.py`** - Stage 3: Run official evaluation
-5. **`pipeline_4_aggregate_results.py`** - Stage 4: Aggregate & analyze results
+5. **`pipeline_4_security_scan.py`** - Stage 4: Generate security risk score
+5. **`pipeline_5_consistency_check.py`** - Stage 5: Calculate consistency
+5. **`pipeline_6_aggregate_results.py`** - Stage 6: Aggregate & analyze results
 6. **`run_pipeline.py`** - Master pipeline runner
 7. **`example_run.sh`** - Example usage script
 8. **`PIPELINE_README.md`** - Complete documentation
@@ -25,6 +27,8 @@ output/
         ├── stage1_summary.json
         ├── stage2_summary.json
         ├── stage3_summary.json
+        ├── stage4_summary.json        
+        ├── stage5_summary.json                
         ├── run_summary.json
         ├── results.csv
         ├── predictions_all.json
@@ -34,6 +38,8 @@ output/
             ├── prediction.json
             ├── evaluation.json
             ├── trajectory.json
+            ├── security_risk_score.json            
+            ├── consistency.json                        
             └── metadata.json
 ```
 
@@ -142,6 +148,46 @@ diff --git a/django/conf/global_settings.py b/django/conf/global_settings.py
 }
 ```
 
+### instance_id/security_risk_score.json
+```json
+{
+  "instance_id": "django__django-10914",
+  "model_name": "claude-sonnet-4-20250514",
+  "status": "success",
+  "elapsed_time": 90.95081353187561,
+  "error": null,
+  "security_risk_score_result": {
+    "security_risk_score": 0.0,
+    "risk_level": "NONE",
+    "high_severity_detected": false,
+    "total_weighted_score": 0,
+    "patch_size": 1.54,
+    "tool_scores": {
+      "bandit": 12,
+      "semgrep": 0,
+      "codeql": 0
+    },
+    "severity_changes": {
+      "bandit": {
+        "HIGH": 0,
+        "LOW": 0,
+        "MEDIUM": 4
+      },
+      "semgrep": {
+        "HIGH": 0,
+        "LOW": 0,
+        "MEDIUM": 0
+      },
+      "codeql": {
+        "HIGH": 0,
+        "LOW": 0,
+        "MEDIUM": 0
+      }
+    }
+  }
+}
+```
+
 ### run_summary.json
 ```json
 {
@@ -208,6 +254,7 @@ django__django-10914/
 ├── evaluation.json
 ├── trajectory.json
 ├── metadata.json
+├── security_risk_score.json
 └── consistency.json    # NEW
 ```
 
