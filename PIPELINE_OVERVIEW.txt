@@ -30,15 +30,18 @@
 │      ├─ Outputs: evaluation.json (per instance)                              │
 │      └─ Creates: evaluation_results.json (aggregated)                        │
 │                                                                              │
-│  [4] AGGREGATE RESULTS                                                       │
+│  [4] SECURITY SCAN                                                           │
+│      ├─ Runs security scans for risk score generation                        │
+│      ├─ Outputs: security_risk_score.json (per instance)                     │
+│                                                                              │
+│  [5] CONSISTENCY CHECK                                                       │
+│      ├─ Consistency evaluation                                               │
+│      ├─ Outputs: consistency.json (per instance)                             │
+│                                                                              │
+│  [6] AGGREGATE RESULTS                                                       │
 │      ├─ Collects all metrics and results                                     │
 │      ├─ Outputs: run_summary.json, results.csv                               │
 │      └─ Shows: resolution rate, costs, timing                                │
-│                                                                              │
-│  [5] CONSISTENCY CHECK (FUTURE - EXTENSIBLE)                                 │
-│      ├─ Your custom consistency evaluation                                   │
-│      ├─ Outputs: consistency.json (per instance)                             │
-│      └─ Easy to add as new pipeline stage                                    │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -53,7 +56,9 @@
 │         ├── stage1_summary.json        ← Stage 1 metrics                     │
 │         ├── stage2_summary.json        ← Stage 2 metrics                     │
 │         ├── stage3_summary.json        ← Stage 3 metrics                     │
-│         ├── run_summary.json           ← Complete summary ⭐                  │
+│         ├── stage4_summary.json        ← Stage 4 metrics                     │
+│         ├── stage5_summary.json        ← Stage 5 metrics                     │
+│         ├── run_summary.json           ← Complete summary ⭐                 │
 │         ├── results.csv                ← CSV for analysis                    │
 │         ├── predictions_all.json       ← All predictions                     │
 │         ├── evaluation_results.json    ← Evaluation results                  │
@@ -64,6 +69,8 @@
 │         │   ├── evaluation.json        ← Pass/fail result                    │
 │         │   ├── trajectory.json        ← Full agent trace                    │
 │         │   └── metadata.json          ← Cost, time, API calls               │
+│         │   └── security_risk_score.json   ← Security scan risk score        │
+│         │   └── consistency.json       ← Consistency check                   │
 │         │                                                                    │
 │         └── django__django-11001/                                            │
 │             └── ...                                                          │
@@ -134,7 +141,9 @@
 │  📄 pipeline_1_generate_patches.py    - Stage 1 implementation               │
 │  📄 pipeline_2_create_predictions.py  - Stage 2 implementation               │
 │  📄 pipeline_3_run_evaluation.py      - Stage 3 implementation               │
-│  📄 pipeline_4_aggregate_results.py   - Stage 4 implementation               │
+│  📄 pipeline_4_security_scan.py       - Stage 4 implementation               │
+│  📄 pipeline_5_consistency_check.py   - Stage 5 implementation               │
+│  📄 pipeline_6_aggregate_results.py   - Stage 6 implementation               │
 │  📄 run_pipeline.py                   - Master pipeline runner               │
 │  📄 example_run.sh                    - Usage example                        │
 │  📄 PIPELINE_README.md                - Complete documentation               │

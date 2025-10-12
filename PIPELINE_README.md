@@ -11,6 +11,7 @@ can watch this [https://www.loom.com/share/3d419804917347d6aa389529affcb20b](loo
 - Python 3.11 or higher (see `.python-version` for recommended version)
 - Docker (for running SWE-bench evaluation harness)
 - API key for your chosen model provider
+- CodeQL installed 
 
 ### Setup Steps
 
@@ -62,6 +63,23 @@ docker ps
 
 If Docker is not running, start it (e.g., `orbstack start` on macOS with OrbStack).
 
+5. **Install CodeQL**
+- For MacOS
+
+```bash
+brew install --cask codeql
+```
+
+- For Linux (e.g. Ubuntu WSL)
+```bash
+sudo mkdir /usr/local/share/codeql/
+sudo chown $USER /usr/local/share/codeql/
+cd ~
+wget https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.23.2/codeql-bundle-linux64.tar.gz
+tar xf codeql-bundle-linux64.tar.gz -C /usr/local/share
+sudo ln -s /usr/local/share/codeql/codeql /usr/local/bin/codeql
+```
+
 ## Overview
 
 This pipeline automates the complete evaluation process:
@@ -85,6 +103,8 @@ output/
 │       ├── stage1_summary.json          # Stage 1 summary
 │       ├── stage2_summary.json          # Stage 2 summary
 │       ├── stage3_summary.json          # Stage 3 summary
+│       ├── stage4_summary.json          # Stage 4 summary
+│       ├── stage5_summary.json          # Stage 5 summary
 │       ├── run_summary.json             # Complete run summary
 │       ├── results.csv                  # Results in CSV format
 │       ├── predictions_all.json         # All predictions for SWE-bench
@@ -95,6 +115,8 @@ output/
 │       │   ├── evaluation.json          # Evaluation result
 │       │   ├── trajectory.json          # Agent execution trace
 │       │   └── metadata.json            # Cost, time, API calls
+│       │   └── consistency.json         # Consistency checks
+│       │   └── security_risk_score.json # Security risk score generation
 │       └── django__django-11001/
 │           └── ...
 └── gpt-4o-2024-08-06/
@@ -143,8 +165,16 @@ python pipeline_2_create_predictions.py \
 python pipeline_3_run_evaluation.py \
   output/claude-sonnet-4-20250514/20250930_0928
 
-# Stage 4: Aggregate results (requires Stage 3)
-python pipeline_4_aggregate_results.py \
+# Stage 4: Security scan (requires Stage 3)
+python pipeline_4_security_scan.py \
+  output/claude-sonnet-4-20250514/20250930_0928
+
+# Stage 5: Check consistency (requires Stage 3)
+python pipeline_5_consistency_check.py \
+  output/claude-sonnet-4-20250514/20250930_0928
+
+# Stage 6: Aggregate results (requires Stage 3)
+python pipeline_6_aggregate_results.py \
   output/claude-sonnet-4-20250514/20250930_0928
 ```
 
@@ -159,7 +189,10 @@ ls -lt output/claude-sonnet-4-20250514/
 # Continue with remaining stages using that directory
 python pipeline_2_create_predictions.py output/claude-sonnet-4-20250514/20250930_0928
 python pipeline_3_run_evaluation.py output/claude-sonnet-4-20250514/20250930_0928
-python pipeline_4_aggregate_results.py output/claude-sonnet-4-20250514/20250930_0928
+python pipeline_4_security_scan.py output/claude-sonnet-4-20250514/20250930_0928
+python pipeline_5_consistency_check.py output/claude-sonnet-4-20250514/20250930_0928
+python pipeline_6_aggregate_results.py output/claude-sonnet-4-20250514/20250930_0928
+
 ```
 
 **For detailed usage instructions**, see [HOW_TO_USE_PIPELINE.md](HOW_TO_USE_PIPELINE.md).
@@ -207,6 +240,8 @@ class PipelineConfig:
 - **`evaluation.json`** - Evaluation result (resolved/unresolved)
 - **`trajectory.json`** - Complete mini-swe-agent execution trace
 - **`metadata.json`** - Execution metrics (cost, time, API calls)
+- **`security_risk_score.json`** - Security risk score using Bandit, Semgrep, CodeQL
+- **`consistency.json`** - Consistency scores
 
 ### Aggregated
 

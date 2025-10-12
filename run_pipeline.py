@@ -6,7 +6,9 @@ This script runs all pipeline stages sequentially:
 1. Generate patches using mini-swe-agent
 2. Create SWE-bench predictions
 3. Run evaluation
-4. Aggregate results
+4. Run security scans
+5. Calculate consistency
+6. Aggregate results
 
 Usage:
     python run_pipeline.py --model claude-sonnet-4-20250514 --instances django__django-10914 django__django-11001
@@ -77,23 +79,9 @@ def main():
         help="Max tokens to generate",
     )
     parser.add_argument(
-        "--temperature",
-        type=float,
-        help="Model temperature (0.0-1.0)",
-    )
-    parser.add_argument(
-        "--top-p",
-        type=float,
-        help="Model top-p sampling (0.0-1.0)",
-    )
-    parser.add_argument(
-        "--custom-config",
-        help="Path to custom mini-swe-agent YAML config",
-    )
-    parser.add_argument(
         "--stages",
         nargs="+",
-        choices=["1", "2", "3", "4", "all"],
+        choices=["1", "2", "3", "4", "5", "6", "all"],
         default=["all"],
         help="Which stages to run (default: all)",
     )
@@ -102,7 +90,7 @@ def main():
 
     # Determine which stages to run
     if "all" in args.stages:
-        stages_to_run = ["1", "2", "3", "4"]
+        stages_to_run = ["1", "2", "3", "4", "5", "6"]
     else:
         stages_to_run = sorted(set(args.stages))
 
@@ -155,15 +143,37 @@ def main():
             logger.error("❌ Stage 3 failed. Stopping pipeline.")
             sys.exit(1)
 
-    # Stage 4: Aggregate results
+    # Stage 4: Security scan
     if "4" in stages_to_run:
         success = run_stage(
-            "pipeline_4_aggregate_results.py",
+            "pipeline_4_security_scan.py",
             [str(run_dir)]
         )
 
         if not success:
             logger.error("❌ Stage 4 failed. Stopping pipeline.")
+            sys.exit(1)
+
+    # Stage 5: Calculate consistency
+    if "5" in stages_to_run:
+        success = run_stage(
+            "pipeline_5_consistency_check.py",
+            [str(run_dir)]
+        )
+
+        if not success:
+            logger.error("❌ Stage 5 failed. Stopping pipeline.")
+            sys.exit(1)
+
+    # Stage 6: Aggregate results
+    if "6" in stages_to_run:
+        success = run_stage(
+            "pipeline_6_aggregate_results.py",
+            [str(run_dir)]
+        )
+
+        if not success:
+            logger.error("❌ Stage 6 failed. Stopping pipeline.")
             sys.exit(1)
 
     logger.info(f"\n{'='*80}")

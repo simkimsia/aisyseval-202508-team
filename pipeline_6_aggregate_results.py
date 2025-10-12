@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage 4: Aggregate and analyze results
+Stage 6: Aggregate and analyze results
 
 This script aggregates all results from previous stages and creates:
 - run_summary.json: Complete summary of the entire run
@@ -68,6 +68,7 @@ class ResultsAggregator:
             metadata_path = instance_dir / "metadata.json"
             evaluation_path = instance_dir / "evaluation.json"
             patch_path = instance_dir / "patch.diff"
+            security_risk_score_path = instance_dir / "security_risk_score.json"
 
             instance_result = {
                 "instance_id": instance_id,
@@ -109,6 +110,23 @@ class ResultsAggregator:
                     "resolved": False,
                 })
 
+            # Load security risk score
+            if security_risk_score_path.exists():
+                with open(security_risk_score_path, "r") as f:
+                    security_data = json.load(f)
+                security_risk_score_result = security_data.get("security_risk_score_result", {})
+                instance_result.update({
+                    "security_risk_score": security_risk_score_result.get("security_risk_score", None),
+                    "security_risk_level": security_risk_score_result.get("risk_level", "UNKNOWN"),
+                    "security_scan_status": security_data.get("status", "error"),
+                })
+            else:
+                instance_result.update({
+                    "security_risk_score": None,
+                    "security_risk_level": "UNKNOWN",
+                    "security_scan_status": "error",
+                })
+
             results.append(instance_result)
 
         return results
@@ -121,6 +139,7 @@ class ResultsAggregator:
         stage1 = self._load_stage_summary("1")
         stage2 = self._load_stage_summary("2")
         stage3 = self._load_stage_summary("3")
+        stage4 = self._load_stage_summary("4")
 
         # Aggregate instance results
         instance_results = self.aggregate_instance_results()
@@ -130,6 +149,7 @@ class ResultsAggregator:
         resolved_count = sum(1 for r in instance_results if r.get("resolved", False))
         unresolved_count = sum(1 for r in instance_results if not r.get("resolved", False) and r.get("evaluation_status") != "not_evaluated")
         not_evaluated = sum(1 for r in instance_results if r.get("evaluation_status") == "not_evaluated")
+        not_security_scanned_count = sum(1 for r in instance_results if r.get("security_scan_status") == "error")
 
         total_cost = sum(r.get("cost", 0.0) for r in instance_results)
         total_time = sum(r.get("generation_time", 0.0) for r in instance_results)
@@ -159,16 +179,19 @@ class ResultsAggregator:
                 "total_time_seconds": round(total_time, 1),
                 "avg_time_per_instance_seconds": round(avg_time, 1),
                 "total_api_calls": total_api_calls,
+                "not_security_scanned": not_security_scanned_count,
             },
             "stage_summaries": {
                 "stage1_generate_patches": stage1,
                 "stage2_create_predictions": stage2,
                 "stage3_run_evaluation": stage3,
+                "stage4_security_scan": stage4,
             },
             "instance_results": instance_results,
             "resolved_instances": [r["instance_id"] for r in instance_results if r.get("resolved", False)],
             "unresolved_instances": [r["instance_id"] for r in instance_results if not r.get("resolved", False) and r.get("evaluation_status") != "not_evaluated"],
             "failed_generation": [r["instance_id"] for r in instance_results if r.get("generation_status") in ["error", "timeout"]],
+            "failed_security_scan": [r["instance_id"] for r in instance_results if r.get("security_scan_status") == "error"],
         }
 
         return summary
@@ -193,6 +216,9 @@ class ResultsAggregator:
             "patch_size",
             "exit_status",
             "error",
+            "security_risk_score",
+            "security_risk_level",
+            "security_scan_status",
         ]
 
         with open(csv_path, "w", newline="") as f:
@@ -251,7 +277,7 @@ class ResultsAggregator:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Stage 4: Aggregate and analyze results"
+        description="Stage 6: Aggregate and analyze results"
     )
     parser.add_argument(
         "run_dir",
@@ -270,7 +296,7 @@ def main():
     aggregator = ResultsAggregator(run_dir)
     summary = aggregator.aggregate()
 
-    logger.info(f"\n✅ Stage 4 complete!")
+    logger.info(f"\n✅ Stage 6 complete!")
     logger.info(f"📄 Summary: {run_dir / 'run_summary.json'}")
     logger.info(f"📊 CSV: {run_dir / 'results.csv'}")
 
