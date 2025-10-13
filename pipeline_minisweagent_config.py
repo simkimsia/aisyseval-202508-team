@@ -243,6 +243,8 @@ def create_config_from_args(args) -> PipelineConfig:
     # Override defaults with command line arguments
     if hasattr(args, 'model') and args.model:
         config.model_name = args.model
+        # Re-detect provider after changing model name
+        config.provider = detect_provider(args.model)
     if hasattr(args, 'instances') and args.instances:
         config.instance_ids = args.instances
     if hasattr(args, 'max_tokens') and args.max_tokens:
