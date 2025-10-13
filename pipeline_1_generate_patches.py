@@ -45,7 +45,8 @@ class PatchGenerator:
         logger.info(f"Generating patch for {instance_id}")
         logger.info(f"{'='*80}")
 
-        output_paths = self.config.get_output_paths(instance_id)
+        # Use run-specific paths if current_run is set
+        output_paths = self.config.get_output_paths(instance_id, self.config.current_run)
         start_time = time.time()
 
         metadata = {
@@ -190,20 +191,31 @@ class PatchGenerator:
         logger.info(f"🚀 Starting patch generation for {len(self.config.instance_ids)} instances")
         logger.info(f"Model: {self.config.model_name}")
         logger.info(f"Output: {self.config.run_output_dir}")
-
-        # Create output directories
-        self.config.create_output_dirs()
+        logger.info(f"Running {self.config.num_runs} run(s) per instance")
 
         # Save configuration
         config_path = self.config.run_output_dir / "config.json"
         with open(config_path, "w") as f:
             json.dump(self.config.to_dict(), f, indent=2)
 
-        # Generate patches
+        # Generate patches - loop over runs first, then instances
         results = []
-        for instance_id in self.config.instance_ids:
-            result = self.generate_patch_for_instance(instance_id)
-            results.append(result)
+        for run_num in range(1, self.config.num_runs + 1):
+            logger.info(f"\n{'='*80}")
+            logger.info(f"=== RUN {run_num} of {self.config.num_runs} ===")
+            logger.info(f"{'='*80}\n")
+
+            # Set current run in config
+            self.config.current_run = run_num
+
+            # Create output directories for this run
+            self.config.create_output_dirs(run_number=run_num)
+
+            for instance_id in self.config.instance_ids:
+                logger.info(f"Run {run_num}/{self.config.num_runs} - Instance: {instance_id}")
+                result = self.generate_patch_for_instance(instance_id)
+                result["run_number"] = run_num  # Add run number to result
+                results.append(result)
 
         # Summary
         completed = sum(1 for r in results if r["status"] == "completed")
@@ -212,8 +224,22 @@ class PatchGenerator:
         total_cost = sum(r.get("cost", 0.0) for r in results)
         total_time = sum(r.get("elapsed_time", 0.0) for r in results)
 
+        # Group results by run number
+        per_run_results = {}
+        for run_num in range(1, self.config.num_runs + 1):
+            run_results = [r for r in results if r.get("run_number") == run_num]
+            per_run_results[f"run_{run_num}"] = {
+                "completed": sum(1 for r in run_results if r["status"] == "completed"),
+                "errored": sum(1 for r in run_results if r["status"] == "error"),
+                "timeout": sum(1 for r in run_results if r["status"] == "timeout"),
+                "cost": sum(r.get("cost", 0.0) for r in run_results),
+                "time": sum(r.get("elapsed_time", 0.0) for r in run_results),
+                "results": run_results,
+            }
+
         summary = {
             "stage": "1_generate_patches",
+            "num_runs": self.config.num_runs,
             "total_instances": len(self.config.instance_ids),
             "completed": completed,
             "errored": errored,
@@ -221,12 +247,14 @@ class PatchGenerator:
             "total_cost": total_cost,
             "total_time": total_time,
             "avg_time_per_instance": total_time / len(results) if results else 0,
+            "per_run_results": per_run_results,
             "results": results,
         }
 
         logger.info(f"\n{'='*80}")
         logger.info(f"📊 STAGE 1 SUMMARY")
         logger.info(f"{'='*80}")
+        logger.info(f"Number of runs: {self.config.num_runs}")
         logger.info(f"Total instances: {summary['total_instances']}")
         logger.info(f"✅ Completed: {completed}")
         logger.info(f"❌ Errored: {errored}")
@@ -234,6 +262,21 @@ class PatchGenerator:
         logger.info(f"💰 Total cost: ${total_cost:.4f}")
         logger.info(f"⏱️ Total time: {total_time:.1f}s")
         logger.info(f"⏱️ Avg time: {summary['avg_time_per_instance']:.1f}s")
+
+        # Show per-run summary if multiple runs
+        if self.config.num_runs > 1:
+            logger.info(f"\n{'='*80}")
+            logger.info(f"📊 PER-RUN BREAKDOWN")
+            logger.info(f"{'='*80}")
+            for run_num in range(1, self.config.num_runs + 1):
+                run_key = f"run_{run_num}"
+                run_data = per_run_results[run_key]
+                logger.info(f"\nRun {run_num}:")
+                logger.info(f"  ✅ Completed: {run_data['completed']}")
+                logger.info(f"  ❌ Errored: {run_data['errored']}")
+                logger.info(f"  ⏱️ Timeout: {run_data['timeout']}")
+                logger.info(f"  💰 Cost: ${run_data['cost']:.4f}")
+                logger.info(f"  ⏱️ Time: {run_data['time']:.1f}s")
 
         return summary
 
@@ -273,6 +316,12 @@ def main():
         type=int,
         default=64000,
         help="Max tokens to generate",
+    )
+    parser.add_argument(
+        "--num-runs",
+        type=int,
+        default=1,
+        help="Number of runs per instance (default: 1)",
     )
 
     args = parser.parse_args()

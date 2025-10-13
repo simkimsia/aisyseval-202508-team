@@ -369,7 +369,10 @@ cat output_test/claude-sonnet-4-20250514/{timestamp}/consistency_summary.json
   }
   ```
 
-- [ ] Update CSV export to include `run_number` column
+- [ ] **IMPORTANT**: Update CSV export to include `run_number` column as the second column (after instance_id)
+  - Add "run_number" to fieldnames list at line 208
+  - CSV should have one row per (instance_id, run_number) combination
+  - For single-run (backward compatibility), run_number should be 1
 - [ ] Add aggregated metrics:
   - Average resolution rate across runs
   - Total cost (sum of all runs)
