@@ -318,11 +318,9 @@ class ConsistencyChecker:
             Dictionary with overall score and grade
         """
         # Calculate patch consistency score (0-100)
-        # Use confidence_percent (already 0-100) weighted with exact_match_rate
-        patch_score = (
-            patch_metrics["exact_match_rate"] * 50 * 100 +  # Convert 0-1 to 0-100
-            patch_metrics["confidence_percent"] * 0.5        # Already 0-100
-        )
+        # Blend exact match rate (converted to percent) with confidence_percent for balance
+        exact_match_percent = patch_metrics["exact_match_rate"] * 100
+        patch_score = (exact_match_percent * 0.5) + (patch_metrics["confidence_percent"] * 0.5)
 
         # Calculate evaluation consistency score (0-100)
         # High score if all resolved or all failed (consistent), low if mixed

@@ -9,9 +9,10 @@ can watch this [https://www.loom.com/share/3d419804917347d6aa389529affcb20b](loo
 ### Prerequisites
 
 - Python 3.11 or higher (see `.python-version` for recommended version)
+- Setup Virtual Environment and Install Requirements in the venv
 - Docker (for running SWE-bench evaluation harness)
 - API key for your chosen model provider
-- CodeQL installed 
+- CodeQL installed
 
 ### Setup Steps
 
@@ -64,13 +65,14 @@ docker ps
 If Docker is not running, start it (e.g., `orbstack start` on macOS with OrbStack).
 
 5. **Install CodeQL**
-- For MacOS
+- For macOS
 
 ```bash
 brew install --cask codeql
+codeql pack download codeql/python-queries
 ```
 
-- For Linux (e.g. Ubuntu WSL)
+- For Linux (including Ubuntu on Windows via WSL)
 ```bash
 sudo mkdir /usr/local/share/codeql/
 sudo chown $USER /usr/local/share/codeql/
@@ -78,7 +80,10 @@ cd ~
 wget https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.23.2/codeql-bundle-linux64.tar.gz
 tar xf codeql-bundle-linux64.tar.gz -C /usr/local/share
 sudo ln -s /usr/local/share/codeql/codeql /usr/local/bin/codeql
+codeql pack download codeql/python-queries
 ```
+
+**Windows tip:** Run the Linux instructions inside Ubuntu WSL and ensure `/usr/local/bin` is in your `PATH`.
 
 ## Overview
 
@@ -87,7 +92,9 @@ This pipeline automates the complete evaluation process:
 1. **Generate Patches** - Use mini-swe-agent to solve SWE-bench instances
 2. **Create Predictions** - Convert patches to SWE-bench prediction format
 3. **Run Evaluation** - Execute official SWE-bench evaluation harness
-4. **Aggregate Results** - Create comprehensive summaries and analysis
+4. **Security Scan** - Run Bandit, Semgrep, and CodeQL against before/after states
+5. **Consistency Check** - Compare multiple runs for the same instance
+6. **Aggregate Results** - Produce run-level reports and CSV summaries
 
 **📖 For comprehensive usage instructions**, see [HOW_TO_USE_PIPELINE.md](HOW_TO_USE_PIPELINE.md).
 
@@ -105,18 +112,22 @@ output/
 │       ├── stage3_summary.json          # Stage 3 summary
 │       ├── stage4_summary.json          # Stage 4 summary
 │       ├── stage5_summary.json          # Stage 5 summary
+│       ├── stage6_summary.json          # Stage 6 summary
 │       ├── run_summary.json             # Complete run summary
 │       ├── results.csv                  # Results in CSV format
 │       ├── predictions_all.json         # All predictions for SWE-bench
 │       ├── evaluation_results.json      # Full evaluation results
 │       ├── django__django-10914/
-│       │   ├── patch.diff               # Generated code fix
-│       │   ├── prediction.json          # SWE-bench prediction
-│       │   ├── evaluation.json          # Evaluation result
-│       │   ├── trajectory.json          # Agent execution trace
-│       │   └── metadata.json            # Cost, time, API calls
-│       │   └── consistency.json         # Consistency checks
-│       │   └── security_risk_score.json # Security risk score generation
+│       │   ├── run_1/
+│       │   │   ├── patch.diff               # Generated code fix (run 1)
+│       │   │   ├── prediction.json          # SWE-bench prediction (run 1)
+│       │   │   ├── evaluation.json          # Evaluation result (run 1)
+│       │   │   ├── trajectory.json          # Agent execution trace
+│       │   │   ├── metadata.json            # Cost, time, API calls
+│       │   │   └── security_risk_score.json # Security risk score
+│       │   ├── run_2/
+│       │   │   └── ...
+│       │   └── consistency.json             # Cross-run consistency analysis
 │       └── django__django-11001/
 │           └── ...
 └── gpt-4o-2024-08-06/
@@ -131,20 +142,23 @@ output/
 # Single instance
 python run_pipeline.py \
   --model claude-sonnet-4-20250514 \
-  --instances django__django-10914
+  --instances django__django-10914 \
+  --num-runs 3
 
 # Multiple instances
 python run_pipeline.py \
   --model claude-sonnet-4-20250514 \
-  --instances django__django-10914 django__django-11001 django__django-11019
+  --instances django__django-10914 django__django-11001 django__django-11019 \
+  --num-runs 2
 
 # 10 instances from SWE-bench Lite
-python run_pipeline.py \
-  --model claude-sonnet-4-20250514 \
-  --instances django__django-10914 django__django-11001 django__django-11019 \
-               django__django-11039 django__django-11049 django__django-11099 \
+ python run_pipeline.py \
+   --model claude-sonnet-4-20250514 \
+   --instances django__django-10914 django__django-11001 django__django-11019 \
+                django__django-11039 django__django-11049 django__django-11099 \
                django__django-11133 django__django-11179 django__django-11283 \
-               django__django-11422
+               django__django-11422 \
+  --num-runs 1
 ```
 
 **See also**: Ready-to-use example scripts in [examples/](examples/) for different providers.
@@ -177,6 +191,8 @@ python pipeline_5_consistency_check.py \
 python pipeline_6_aggregate_results.py \
   output/claude-sonnet-4-20250514/20250930_0928
 ```
+
+**Stage 4 requirements:** Ensure the CodeQL CLI and the `codeql/python-queries` pack are installed and accessible on your `PATH`, and that the machine can reach `github.com` to clone repositories for each run (`run_N/tmp_repo`).
 
 ### Continue from Existing Run
 
@@ -233,22 +249,24 @@ class PipelineConfig:
 
 ## Output Files
 
-### Per Instance
+### Per Instance (per run)
 
+- Located in `output/<model>/<timestamp>/<instance_id>/run_<N>/`
 - **`patch.diff`** - The generated code fix in unified diff format
 - **`prediction.json`** - SWE-bench prediction format for evaluation
 - **`evaluation.json`** - Evaluation result (resolved/unresolved)
 - **`trajectory.json`** - Complete mini-swe-agent execution trace
 - **`metadata.json`** - Execution metrics (cost, time, API calls)
 - **`security_risk_score.json`** - Security risk score using Bandit, Semgrep, CodeQL
-- **`consistency.json`** - Consistency scores
+- **`consistency.json`** - Cross-run comparison (stored once per instance)
 
 ### Aggregated
 
+- **`stage{N}_summary.json`** - Per-stage status (patch, predictions, evaluation, security, consistency, aggregation)
+- **`predictions_all_run{N}.json`** - Predictions grouped by run number
+- **`evaluation_results_run{N}.json`** - SWE-bench evaluation output per run
 - **`run_summary.json`** - Complete summary with all metrics
 - **`results.csv`** - Results in CSV format for analysis
-- **`predictions_all.json`** - All predictions in SWE-bench format
-- **`evaluation_results.json`** - Official SWE-bench evaluation results
 
 ## Example Output
 

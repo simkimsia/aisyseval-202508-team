@@ -162,7 +162,11 @@ class PatchGenerator:
             # Remove test/reproduction scripts from patch
             main_patch = submission.split("diff --git a/reproduce_")[0]
             main_patch = main_patch.split("diff --git a/test_")[0]
-            main_patch = main_patch.strip()
+
+            # Trim leading whitespace, but preserve trailing whitespace and blank lines
+            diff_start = main_patch.find("diff --git")
+            if diff_start != -1:
+                main_patch = main_patch[diff_start:]
 
             # Save patch
             with open(patch_path, "w") as f:
@@ -192,6 +196,9 @@ class PatchGenerator:
         logger.info(f"Model: {self.config.model_name}")
         logger.info(f"Output: {self.config.run_output_dir}")
         logger.info(f"Running {self.config.num_runs} run(s) per instance")
+
+        # Ensure run-level output directory exists before writing config files
+        self.config.create_output_dirs()
 
         # Save configuration
         config_path = self.config.run_output_dir / "config.json"

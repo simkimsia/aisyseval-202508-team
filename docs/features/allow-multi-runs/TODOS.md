@@ -262,9 +262,9 @@ find output_test -name "security_risk_score.json" -type f
 
 ---
 
-## Step 7: Implement Stage 5 (Consistency Check) 🔄
+## Step 7: Implement Stage 5 (Consistency Check) ✅
 
-**Status**: IN PROGRESS
+**Status**: COMPLETED
 
 **File**: `pipeline_5_consistency_check.py`
 
@@ -341,16 +341,16 @@ cat output_test/claude-sonnet-4-20250514/{timestamp}/consistency_summary.json
 
 ---
 
-## Step 8: Update Stage 6 (Aggregate Results) ⏸️
+## Step 8: Update Stage 6 (Aggregate Results) ✅
 
-**Status**: PENDING
+**Status**: COMPLETED
 
 **File**: `pipeline_6_aggregate_results.py`
 
 **Tasks**:
 
-- [ ] Update `ResultsAggregator` to discover runs
-- [ ] Update `aggregate_instance_results()` to iterate over runs:
+- [x] Update `ResultsAggregator` to discover runs
+- [x] Update `aggregate_instance_results()` to iterate over runs:
 
   ```python
   for instance_dir in self.run_dir.iterdir():
@@ -360,7 +360,7 @@ cat output_test/claude-sonnet-4-20250514/{timestamp}/consistency_summary.json
           # Create row in results with run_number column
   ```
 
-- [ ] Update `create_run_summary()` to include:
+- [x] Update `create_run_summary()` to include:
 
   ```python
   "multi_run_info": {
@@ -369,15 +369,15 @@ cat output_test/claude-sonnet-4-20250514/{timestamp}/consistency_summary.json
   }
   ```
 
-- [ ] **IMPORTANT**: Update CSV export to include `run_number` column as the second column (after instance_id)
+- [x] **IMPORTANT**: Update CSV export to include `run_number` column as the second column (after instance_id)
   - Add "run_number" to fieldnames list at line 208
   - CSV should have one row per (instance_id, run_number) combination
   - For single-run (backward compatibility), run_number should be 1
-- [ ] Add aggregated metrics:
+- [x] Add aggregated metrics:
   - Average resolution rate across runs
   - Total cost (sum of all runs)
   - Consistency grade from stage 5
-- [ ] Update logging to show multi-run summary
+- [x] Update logging to show multi-run summary
 
 **Verification**:
 
@@ -405,19 +405,19 @@ cat output_test/claude-sonnet-4-20250514/{timestamp}/run_summary.json | jq '.mul
 
 **Tasks**:
 
-- [ ] Test full pipeline with --num-runs=1 (backward compatibility):
+- [x] Test full pipeline with --num-runs=1 (backward compatibility):
 
   ```bash
-  python run_pipeline.py --model claude-sonnet-4-20250514 --instances django__django-10914 --num-runs 1
+  python run_pipeline.py --model gemini/gemini-2.5-pro --instances django__django-10914 --num-runs 1
   ```
 
-- [ ] Test full pipeline with --num-runs=3 (new feature):
+- [x] Test full pipeline with --num-runs=3 (new feature):
 
   ```bash
-  python run_pipeline.py --model claude-sonnet-4-20250514 --instances django__django-10914 --num-runs 3
+  python run_pipeline.py --model gemini/gemini-2.5-pro --instances django__django-10914 --num-runs 3
   ```
 
-- [ ] Test partial pipeline execution:
+- [x] Test partial pipeline execution:
 
   ```bash
   # Run only stage 1
