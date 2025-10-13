@@ -1,0 +1,447 @@
+{
+  "run_info": {
+    "model_name": "gemini/gemini-2.5-pro",
+    "timestamp": "20251013_1526",
+    "output_dir": "output/gemini/gemini-2.5-pro/20251013_1526",
+    "swebench_dataset": "princeton-nlp/SWE-bench_Lite",
+    "swebench_split": "test",
+    "num_runs_configured": 3
+  },
+  "overall_metrics": {
+    "total_instances": 3,
+    "resolved": 3,
+    "unresolved": 0,
+    "not_evaluated": 0,
+    "resolution_rate_percent": 100.0,
+    "total_cost_usd": 0.4521,
+    "avg_cost_per_instance_usd": 0.1507,
+    "total_time_seconds": 283.4,
+    "avg_time_per_instance_seconds": 94.5,
+    "total_api_calls": 68,
+    "not_security_scanned": 0
+  },
+  "stage_summaries": {
+    "stage1_generate_patches": {
+      "stage": "1_generate_patches",
+      "num_runs": 3,
+      "total_instances": 1,
+      "completed": 3,
+      "errored": 0,
+      "timeout": 0,
+      "total_cost": 0.45211250000000003,
+      "total_time": 283.40858030319214,
+      "avg_time_per_instance": 94.46952676773071,
+      "per_run_results": {
+        "run_1": {
+          "completed": 1,
+          "errored": 0,
+          "timeout": 0,
+          "cost": 0.07745375000000002,
+          "time": 69.38365602493286,
+          "results": [
+            {
+              "instance_id": "django__django-10914",
+              "model_name": "gemini/gemini-2.5-pro",
+              "status": "completed",
+              "start_time": "2025-10-13 15:26:38",
+              "cost": 0.07745375000000002,
+              "api_calls": 16,
+              "elapsed_time": 69.38365602493286,
+              "error": null,
+              "exit_status": "Submitted",
+              "run_number": 1
+            }
+          ]
+        },
+        "run_2": {
+          "completed": 1,
+          "errored": 0,
+          "timeout": 0,
+          "cost": 0.3212475,
+          "time": 166.8666911125183,
+          "results": [
+            {
+              "instance_id": "django__django-10914",
+              "model_name": "gemini/gemini-2.5-pro",
+              "status": "completed",
+              "start_time": "2025-10-13 15:27:48",
+              "cost": 0.3212475,
+              "api_calls": 43,
+              "elapsed_time": 166.8666911125183,
+              "error": null,
+              "exit_status": "Submitted",
+              "run_number": 2
+            }
+          ]
+        },
+        "run_3": {
+          "completed": 1,
+          "errored": 0,
+          "timeout": 0,
+          "cost": 0.05341125000000001,
+          "time": 47.15823316574097,
+          "results": [
+            {
+              "instance_id": "django__django-10914",
+              "model_name": "gemini/gemini-2.5-pro",
+              "status": "completed",
+              "start_time": "2025-10-13 15:30:35",
+              "cost": 0.05341125000000001,
+              "api_calls": 9,
+              "elapsed_time": 47.15823316574097,
+              "error": null,
+              "exit_status": "Submitted",
+              "run_number": 3
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "instance_id": "django__django-10914",
+          "model_name": "gemini/gemini-2.5-pro",
+          "status": "completed",
+          "start_time": "2025-10-13 15:26:38",
+          "cost": 0.07745375000000002,
+          "api_calls": 16,
+          "elapsed_time": 69.38365602493286,
+          "error": null,
+          "exit_status": "Submitted",
+          "run_number": 1
+        },
+        {
+          "instance_id": "django__django-10914",
+          "model_name": "gemini/gemini-2.5-pro",
+          "status": "completed",
+          "start_time": "2025-10-13 15:27:48",
+          "cost": 0.3212475,
+          "api_calls": 43,
+          "elapsed_time": 166.8666911125183,
+          "error": null,
+          "exit_status": "Submitted",
+          "run_number": 2
+        },
+        {
+          "instance_id": "django__django-10914",
+          "model_name": "gemini/gemini-2.5-pro",
+          "status": "completed",
+          "start_time": "2025-10-13 15:30:35",
+          "cost": 0.05341125000000001,
+          "api_calls": 9,
+          "elapsed_time": 47.15823316574097,
+          "error": null,
+          "exit_status": "Submitted",
+          "run_number": 3
+        }
+      ]
+    },
+    "stage2_create_predictions": {
+      "stage": "2_create_predictions",
+      "num_runs": 3,
+      "total_predictions": 3,
+      "success": 3,
+      "skipped": 0,
+      "errored": 0,
+      "aggregated_predictions_paths": [
+        "output/gemini/gemini-2.5-pro/20251013_1526/predictions_all_run1.json",
+        "output/gemini/gemini-2.5-pro/20251013_1526/predictions_all_run2.json",
+        "output/gemini/gemini-2.5-pro/20251013_1526/predictions_all_run3.json"
+      ],
+      "per_run_stats": {
+        "run_1": {
+          "success": 1,
+          "skipped": 0,
+          "errored": 0,
+          "total": 1
+        },
+        "run_2": {
+          "success": 1,
+          "skipped": 0,
+          "errored": 0,
+          "total": 1
+        },
+        "run_3": {
+          "success": 1,
+          "skipped": 0,
+          "errored": 0,
+          "total": 1
+        }
+      },
+      "results": [
+        {
+          "instance_id": "django__django-10914",
+          "status": "success",
+          "prediction_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_1/prediction.json",
+          "run_number": 1
+        },
+        {
+          "instance_id": "django__django-10914",
+          "status": "success",
+          "prediction_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_2/prediction.json",
+          "run_number": 2
+        },
+        {
+          "instance_id": "django__django-10914",
+          "status": "success",
+          "prediction_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_3/prediction.json",
+          "run_number": 3
+        }
+      ]
+    },
+    "stage3_run_evaluation": {
+      "stage": "3_run_evaluation",
+      "status": "success",
+      "num_runs": 3,
+      "total_instances": 3,
+      "total_resolved": 3,
+      "total_unresolved": 0,
+      "total_errors": 0,
+      "total_elapsed_time": 1078.6531982421875,
+      "per_run_stats": {
+        "run_1": {
+          "status": "success",
+          "total_instances": 1,
+          "resolved": 1,
+          "unresolved": 0,
+          "error_instances": 0,
+          "elapsed_time": 348.36626410484314
+        },
+        "run_2": {
+          "status": "success",
+          "total_instances": 1,
+          "resolved": 1,
+          "unresolved": 0,
+          "error_instances": 0,
+          "elapsed_time": 375.90592098236084
+        },
+        "run_3": {
+          "status": "success",
+          "total_instances": 1,
+          "resolved": 1,
+          "unresolved": 0,
+          "error_instances": 0,
+          "elapsed_time": 354.3810131549835
+        }
+      },
+      "all_results": [
+        {
+          "status": "success",
+          "elapsed_time": 348.36626410484314,
+          "total_instances": 1,
+          "resolved": 1,
+          "unresolved": 0,
+          "error_instances": 0,
+          "resolved_ids": [
+            "django__django-10914"
+          ],
+          "unresolved_ids": [],
+          "error_ids": [],
+          "aggregated_results_path": "output/gemini/gemini-2.5-pro/20251013_1526/evaluation_results_run1.json",
+          "run_number": 1
+        },
+        {
+          "status": "success",
+          "elapsed_time": 375.90592098236084,
+          "total_instances": 1,
+          "resolved": 1,
+          "unresolved": 0,
+          "error_instances": 0,
+          "resolved_ids": [
+            "django__django-10914"
+          ],
+          "unresolved_ids": [],
+          "error_ids": [],
+          "aggregated_results_path": "output/gemini/gemini-2.5-pro/20251013_1526/evaluation_results_run2.json",
+          "run_number": 2
+        },
+        {
+          "status": "success",
+          "elapsed_time": 354.3810131549835,
+          "total_instances": 1,
+          "resolved": 1,
+          "unresolved": 0,
+          "error_instances": 0,
+          "resolved_ids": [
+            "django__django-10914"
+          ],
+          "unresolved_ids": [],
+          "error_ids": [],
+          "aggregated_results_path": "output/gemini/gemini-2.5-pro/20251013_1526/evaluation_results_run3.json",
+          "run_number": 3
+        }
+      ]
+    },
+    "stage4_security_scan": {
+      "stage": "4_security_scan",
+      "total_instances": 1,
+      "total_scans": 3,
+      "success": 3,
+      "skipped": 0,
+      "errored": 0,
+      "results": [
+        {
+          "instance_id": "django__django-10914",
+          "run_number": 1,
+          "status": "success",
+          "security_risk_score_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_1/security_risk_score.json"
+        },
+        {
+          "instance_id": "django__django-10914",
+          "run_number": 2,
+          "status": "success",
+          "security_risk_score_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_2/security_risk_score.json"
+        },
+        {
+          "instance_id": "django__django-10914",
+          "run_number": 3,
+          "status": "success",
+          "security_risk_score_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_3/security_risk_score.json"
+        }
+      ]
+    }
+  },
+  "multi_run_info": {
+    "num_runs": 3,
+    "average_resolution_rate_percent": 100.0,
+    "total_cost_all_runs_usd": 0.4521,
+    "consistency_metrics": {
+      "stage": "5_consistency_check",
+      "status": "completed",
+      "num_instances": 1,
+      "instances_checked": 1,
+      "instances_skipped": 0,
+      "aggregated_metrics": {
+        "avg_overall_consistency_score": 73.78,
+        "avg_patch_score": 34.45,
+        "avg_evaluation_score": 100.0,
+        "avg_security_score": 100.0,
+        "grade_distribution": {
+          "GOOD": 1
+        }
+      },
+      "instance_reports": [
+        {
+          "instance_id": "django__django-10914",
+          "num_runs": 3,
+          "patch_consistency": {
+            "confidence_percent": 35.57,
+            "exact_match_rate": 0.3333,
+            "num_unique_patches": 3,
+            "agreement_percent": 33.33,
+            "normalized_confidence_percent": 0.0,
+            "avg_ast_similarity": 0.3442,
+            "avg_text_similarity": 0.3827,
+            "avg_hybrid_similarity": 0.3557,
+            "line_count_variance": 32601.33,
+            "pairwise_comparisons": [
+              {
+                "i": 0,
+                "j": 1,
+                "ast_similarity": 0.9100942266645843,
+                "text_similarity": 0.9140007898894155,
+                "hybrid_similarity": 0.9112661956320336
+              },
+              {
+                "i": 0,
+                "j": 2,
+                "ast_similarity": 0.06649729371479068,
+                "text_similarity": 0.12635196603659152,
+                "hybrid_similarity": 0.08445369541133094
+              },
+              {
+                "i": 1,
+                "j": 2,
+                "ast_similarity": 0.0559583565718535,
+                "text_similarity": 0.10763799190562301,
+                "hybrid_similarity": 0.07146224717198435
+              }
+            ]
+          },
+          "evaluation_consistency": {
+            "all_resolved": true,
+            "all_failed": false,
+            "resolution_rate": 1.0,
+            "num_evaluations": 3
+          },
+          "security_consistency": {
+            "risk_level_mode": "NONE",
+            "score_variance": 0.0,
+            "num_scans": 3,
+            "avg_score": 0.0
+          },
+          "overall_consistency_score": 73.78,
+          "consistency_grade": "GOOD",
+          "component_scores": {
+            "patch_score": 34.45,
+            "evaluation_score": 100.0,
+            "security_score": 100.0
+          }
+        }
+      ]
+    },
+    "consistency_grade_mode": "GOOD",
+    "consistency_grade_distribution": {
+      "GOOD": 1
+    },
+    "avg_overall_consistency_score": 73.78
+  },
+  "instance_results": [
+    {
+      "instance_id": "django__django-10914",
+      "run_number": 1,
+      "patch_exists": true,
+      "patch_size": 9268,
+      "generation_status": "completed",
+      "cost": 0.07745375000000002,
+      "api_calls": 16,
+      "generation_time": 69.38365602493286,
+      "exit_status": "Submitted",
+      "error": null,
+      "evaluation_status": "resolved",
+      "resolved": true,
+      "security_risk_score": 0.0,
+      "security_risk_level": "NONE",
+      "security_scan_status": "success"
+    },
+    {
+      "instance_id": "django__django-10914",
+      "run_number": 2,
+      "patch_exists": true,
+      "patch_size": 10988,
+      "generation_status": "completed",
+      "cost": 0.3212475,
+      "api_calls": 43,
+      "generation_time": 166.8666911125183,
+      "exit_status": "Submitted",
+      "error": null,
+      "evaluation_status": "resolved",
+      "resolved": true,
+      "security_risk_score": 0.0,
+      "security_risk_level": "NONE",
+      "security_scan_status": "success"
+    },
+    {
+      "instance_id": "django__django-10914",
+      "run_number": 3,
+      "patch_exists": true,
+      "patch_size": 625,
+      "generation_status": "completed",
+      "cost": 0.05341125000000001,
+      "api_calls": 9,
+      "generation_time": 47.15823316574097,
+      "exit_status": "Submitted",
+      "error": null,
+      "evaluation_status": "resolved",
+      "resolved": true,
+      "security_risk_score": 0.0,
+      "security_risk_level": "NONE",
+      "security_scan_status": "success"
+    }
+  ],
+  "resolved_instances": [
+    "django__django-10914"
+  ],
+  "unresolved_instances": [],
+  "failed_generation": [],
+  "failed_security_scan": []
+}

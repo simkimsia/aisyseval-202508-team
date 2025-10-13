@@ -1,0 +1,83 @@
+{
+  "stage": "3_run_evaluation",
+  "status": "success",
+  "num_runs": 3,
+  "total_instances": 3,
+  "total_resolved": 3,
+  "total_unresolved": 0,
+  "total_errors": 0,
+  "total_elapsed_time": 1078.6531982421875,
+  "per_run_stats": {
+    "run_1": {
+      "status": "success",
+      "total_instances": 1,
+      "resolved": 1,
+      "unresolved": 0,
+      "error_instances": 0,
+      "elapsed_time": 348.36626410484314
+    },
+    "run_2": {
+      "status": "success",
+      "total_instances": 1,
+      "resolved": 1,
+      "unresolved": 0,
+      "error_instances": 0,
+      "elapsed_time": 375.90592098236084
+    },
+    "run_3": {
+      "status": "success",
+      "total_instances": 1,
+      "resolved": 1,
+      "unresolved": 0,
+      "error_instances": 0,
+      "elapsed_time": 354.3810131549835
+    }
+  },
+  "all_results": [
+    {
+      "status": "success",
+      "elapsed_time": 348.36626410484314,
+      "total_instances": 1,
+      "resolved": 1,
+      "unresolved": 0,
+      "error_instances": 0,
+      "resolved_ids": [
+        "django__django-10914"
+      ],
+      "unresolved_ids": [],
+      "error_ids": [],
+      "aggregated_results_path": "output/gemini/gemini-2.5-pro/20251013_1526/evaluation_results_run1.json",
+      "run_number": 1
+    },
+    {
+      "status": "success",
+      "elapsed_time": 375.90592098236084,
+      "total_instances": 1,
+      "resolved": 1,
+      "unresolved": 0,
+      "error_instances": 0,
+      "resolved_ids": [
+        "django__django-10914"
+      ],
+      "unresolved_ids": [],
+      "error_ids": [],
+      "aggregated_results_path": "output/gemini/gemini-2.5-pro/20251013_1526/evaluation_results_run2.json",
+      "run_number": 2
+    },
+    {
+      "status": "success",
+      "elapsed_time": 354.3810131549835,
+      "total_instances": 1,
+      "resolved": 1,
+      "unresolved": 0,
+      "error_instances": 0,
+      "resolved_ids": [
+        "django__django-10914"
+      ],
+      "unresolved_ids": [],
+      "error_ids": [],
+      "aggregated_results_path": "output/gemini/gemini-2.5-pro/20251013_1526/evaluation_results_run3.json",
+      "run_number": 3
+    }
+  ]
+}

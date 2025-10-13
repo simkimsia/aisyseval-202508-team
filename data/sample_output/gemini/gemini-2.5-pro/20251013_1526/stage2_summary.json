@@ -1,0 +1,53 @@
+{
+  "stage": "2_create_predictions",
+  "num_runs": 3,
+  "total_predictions": 3,
+  "success": 3,
+  "skipped": 0,
+  "errored": 0,
+  "aggregated_predictions_paths": [
+    "output/gemini/gemini-2.5-pro/20251013_1526/predictions_all_run1.json",
+    "output/gemini/gemini-2.5-pro/20251013_1526/predictions_all_run2.json",
+    "output/gemini/gemini-2.5-pro/20251013_1526/predictions_all_run3.json"
+  ],
+  "per_run_stats": {
+    "run_1": {
+      "success": 1,
+      "skipped": 0,
+      "errored": 0,
+      "total": 1
+    },
+    "run_2": {
+      "success": 1,
+      "skipped": 0,
+      "errored": 0,
+      "total": 1
+    },
+    "run_3": {
+      "success": 1,
+      "skipped": 0,
+      "errored": 0,
+      "total": 1
+    }
+  },
+  "results": [
+    {
+      "instance_id": "django__django-10914",
+      "status": "success",
+      "prediction_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_1/prediction.json",
+      "run_number": 1
+    },
+    {
+      "instance_id": "django__django-10914",
+      "status": "success",
+      "prediction_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_2/prediction.json",
+      "run_number": 2
+    },
+    {
+      "instance_id": "django__django-10914",
+      "status": "success",
+      "prediction_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_3/prediction.json",
+      "run_number": 3
+    }
+  ]
+}

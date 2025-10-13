@@ -1,0 +1,57 @@
+{
+  "instance_id": "django__django-10914",
+  "num_runs": 3,
+  "patch_consistency": {
+    "confidence_percent": 35.57,
+    "exact_match_rate": 0.3333,
+    "num_unique_patches": 3,
+    "agreement_percent": 33.33,
+    "normalized_confidence_percent": 0.0,
+    "avg_ast_similarity": 0.3442,
+    "avg_text_similarity": 0.3827,
+    "avg_hybrid_similarity": 0.3557,
+    "line_count_variance": 32601.33,
+    "pairwise_comparisons": [
+      {
+        "i": 0,
+        "j": 1,
+        "ast_similarity": 0.9100942266645843,
+        "text_similarity": 0.9140007898894155,
+        "hybrid_similarity": 0.9112661956320336
+      },
+      {
+        "i": 0,
+        "j": 2,
+        "ast_similarity": 0.06649729371479068,
+        "text_similarity": 0.12635196603659152,
+        "hybrid_similarity": 0.08445369541133094
+      },
+      {
+        "i": 1,
+        "j": 2,
+        "ast_similarity": 0.0559583565718535,
+        "text_similarity": 0.10763799190562301,
+        "hybrid_similarity": 0.07146224717198435
+      }
+    ]
+  },
+  "evaluation_consistency": {
+    "all_resolved": true,
+    "all_failed": false,
+    "resolution_rate": 1.0,
+    "num_evaluations": 3
+  },
+  "security_consistency": {
+    "risk_level_mode": "NONE",
+    "score_variance": 0.0,
+    "num_scans": 3,
+    "avg_score": 0.0
+  },
+  "overall_consistency_score": 73.78,
+  "consistency_grade": "GOOD",
+  "component_scores": {
+    "patch_score": 34.45,
+    "evaluation_score": 100.0,
+    "security_score": 100.0
+  }
+}
