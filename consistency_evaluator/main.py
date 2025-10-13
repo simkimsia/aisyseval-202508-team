@@ -1,9 +1,6 @@
 import os
 import json
 import requests
-import difflib
-import ast
-from itertools import combinations
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
@@ -11,73 +8,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
 
-# ------------------- Similarity Utilities -------------------
-
-def normalize_python_code(code: str) -> str:
-    """Normalize Python code into AST dump (ignores formatting & variable names)."""
-    try:
-        tree = ast.parse(code)
-        return ast.dump(tree, annotate_fields=True, include_attributes=False)
-    except Exception:
-        lines = []
-        for line in code.splitlines():
-            if line.strip().startswith("#"):
-                continue
-            lines.append(line.strip())
-        return "\n".join(lines)
-
-def ast_similarity(a: str, b: str) -> float:
-    na = normalize_python_code(a)
-    nb = normalize_python_code(b)
-    return difflib.SequenceMatcher(None, na, nb).ratio()
-
-def text_similarity(a: str, b: str) -> float:
-    return difflib.SequenceMatcher(None, a, b).ratio()
-
-def hybrid_similarity(a: str, b: str, language: str = "python", alpha: float = 0.7) -> Dict[str, float]:
-    if language.lower() == "python":
-        ast_sim = ast_similarity(a, b)
-    else:
-        ast_sim = text_similarity(a, b)
-    text_sim = text_similarity(a, b)
-    hybrid = alpha * ast_sim + (1 - alpha) * text_sim
-    return {"ast": ast_sim, "text": text_sim, "hybrid": hybrid}
-
-def consistency_metrics(outputs: List[str], language: str = "python", threshold: float = 0.85):
-    pairs = list(combinations(range(len(outputs)), 2))
-    details = []
-    hybrids = []
-    consistent = 0
-
-    for i, j in pairs:
-        sims = hybrid_similarity(outputs[i], outputs[j], language)
-        details.append({
-            "i": i,
-            "j": j,
-            "ast_similarity": sims["ast"],
-            "text_similarity": sims["text"],
-            "hybrid_similarity": sims["hybrid"]
-        })
-        hybrids.append(sims["hybrid"])
-        if sims["hybrid"] >= threshold:
-            consistent += 1
-
-    # Agreement % (thresholded)
-    agreement_percent = 100.0 * consistent / len(pairs) if pairs else 100.0
-
-    # Raw average hybrid similarity
-    avg_hybrid = sum(hybrids) / len(hybrids) if hybrids else 1.0
-    confidence_percent = 100.0 * avg_hybrid
-
-    # Normalized confidence (map [0.5, 1.0] → [0, 100])
-    if avg_hybrid <= 0.5:
-        normalized_confidence = 0.0
-    elif avg_hybrid >= 1.0:
-        normalized_confidence = 100.0
-    else:
-        normalized_confidence = ((avg_hybrid - 0.5) / 0.5) * 100.0
-
-    return agreement_percent, confidence_percent, normalized_confidence, details
+# Import shared similarity utilities from local module
+from .similarity_utils import hybrid_similarity, consistency_metrics
 
 # ------------------- Request / Response Models -------------------
 

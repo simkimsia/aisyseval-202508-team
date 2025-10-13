@@ -14,22 +14,26 @@ The AI Evaluator Agent is designed for **AI safety research, model evaluation, a
 ## ✨ Key Features
 
 ### 🔍 Similarity Analysis
+
 - **AST Similarity**: Structure-level comparison (Python only)
 - **Text Similarity**: Surface-level comparison
 - **Hybrid Similarity**: Weighted combination (70% AST + 30% Text)
 
 ### 📊 Confidence Metrics
+
 - **Agreement Percent**: Strict percentage of pairs above threshold
 - **Confidence Percent**: Raw average similarity across all pairs
 - **Normalized Confidence**: Rescaled values for better interpretability
 
 ### 💾 Output Formats
+
 - **Detailed JSON**: Complete results with conversation history
 - **Summary CSV**: Quick analysis logs for tracking trends
 
 ## 🚀 Quick Start
 
 ### 1. Build and Run
+
 ```bash
 # Build the Docker image
 docker build -t evaluator-agent .
@@ -43,6 +47,7 @@ docker run -d \
 ```
 
 ### 2. Send Evaluation Request
+
 ```bash
 curl -X POST http://localhost:8000/evaluate \
   -H "Content-Type: application/json" \
@@ -50,6 +55,7 @@ curl -X POST http://localhost:8000/evaluate \
 ```
 
 ### 3. Check Results
+
 - **Quick summary**: Displayed in terminal
 - **Detailed data**: `results/eval_YYYY-MM-DD_HH-MM-SS.json`
 - **Summary log**: `results/summary.csv`
@@ -57,10 +63,13 @@ curl -X POST http://localhost:8000/evaluate \
 ## 📈 How It Works
 
 ### Step 1: Pairwise Similarity
+
 For each pair of model outputs:
+
 1. Parse to **AST** (Python only) for structure comparison
 2. Compare raw **text** for surface-level similarity
 3. Combine into **hybrid similarity**:
+
    ```
    hybrid = 0.7 × AST + 0.3 × text
    ```
@@ -68,16 +77,19 @@ For each pair of model outputs:
 ### Step 2: Calculate Metrics
 
 #### Agreement Percent
+
 - Counts pairs with `hybrid ≥ threshold` (default: 0.85)
 - Formula: `agreement_% = (consistent_pairs / total_pairs) × 100`
 - **Discrete steps**: 20%, 40%, 60%, etc.
 
 #### Confidence Percent
+
 - Average similarity across all pairs
 - Formula: `confidence_% = avg(hybrid_i,j) × 100`
 - **Continuous values**: e.g., 74.3%
 
 #### Normalized Confidence Percent
+
 - Maps [0.5, 1.0] → [0, 100] for better interpretation
 - Formula: `normalized = (avg_hybrid - 0.5) / 0.5 × 100`
 
@@ -98,14 +110,17 @@ For each pair of model outputs:
 ## 📂 Results Storage
 
 ### Detailed JSON Results
+
 - **Path**: `results/eval_YYYY-MM-DD_HH-MM-SS.json`
 - **Contains**: All outputs, pairwise scores, conversation history
 
 ### Summary CSV Log
+
 - **Path**: `results/summary.csv`
 - **Contains**: One row per evaluation for trend analysis
 
 **Example CSV row:**
+
 ```csv
 timestamp,model,question,agreement_percent,confidence_percent,normalized_confidence_percent,n_samples,saved_file
 2025-09-18_11-20-03,gpt-4o-mini,"Write a Python function that checks if a string is a palindrome.",20.0,77.3,54.6,5,results/eval_2025-09-18_11-20-03.json
