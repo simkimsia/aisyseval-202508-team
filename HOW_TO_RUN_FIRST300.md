@@ -280,9 +280,224 @@ python pipeline_6_aggregate_results.py $RUN_DIR
 ### Issue: Out of API credits
 
 Monitor your API usage and costs:
+
 - Check the `metadata.json` file in each instance's run folder
 - The `run_summary.json` shows total cost
 - Contact the team lead if you need additional credits
+
+### Issue: Stage 1 Timeout (Common with Large Batches)
+
+When running multiple instances, some may timeout at Stage 1. Here's how to handle it:
+
+#### Identifying Timeout Instances
+
+Check each instance's `run_1/metadata.json` for timeout status:
+
+```bash
+# Find your run directory
+RUN_DIR="output/gemini/gemini-2.5-pro/<timestamp>"
+
+# Check all metadata files for timeouts
+grep -r "\"status\": \"timeout\"" $RUN_DIR/*/run_1/metadata.json
+```
+
+A timed-out instance will have only `metadata.json` in its `run_1/` folder with content like:
+
+```json
+{
+  "instance_id": "django__django-11620",
+  "model_name": "gemini/gemini-2.5-pro",
+  "status": "timeout",
+  "start_time": "2025-10-14 14:11:05",
+  "cost": 0.0,
+  "api_calls": 0,
+  "elapsed_time": 600.0883257389069,
+  "error": "Timeout after 600 seconds"
+}
+```
+
+**Indicators of timeout:**
+- Only `metadata.json` exists (no `patch.diff`, `prediction.json`, etc.)
+- `"status": "timeout"` in the metadata
+- `"elapsed_time"` close to 600 seconds (default timeout)
+- `"cost": 0.0` and `"api_calls": 0` (no work was completed)
+
+#### Recommended Strategy: Split and Continue
+
+**Step 1: Identify all timeout instances**
+
+```bash
+RUN_DIR="output/gemini/gemini-2.5-pro/<timestamp>"
+
+# List instances with timeouts
+cd $RUN_DIR
+for instance in */; do
+  if grep -q "\"status\": \"timeout\"" "$instance/run_1/metadata.json" 2>/dev/null; then
+    echo "${instance%/}"
+  fi
+done
+```
+
+**Step 2: Continue with successful instances**
+
+Complete the pipeline for instances that succeeded at Stage 1:
+
+```bash
+# Continue with remaining stages for successful instances
+python pipeline_2_create_predictions.py $RUN_DIR
+python pipeline_3_run_evaluation.py $RUN_DIR
+python pipeline_4_security_scan.py $RUN_DIR
+python pipeline_5_consistency_check.py $RUN_DIR
+python pipeline_6_aggregate_results.py $RUN_DIR
+```
+
+**Step 3: Retry timeout instances separately**
+
+Run the timed-out instances in a new batch:
+
+```bash
+# Run timeout instances separately
+python run_pipeline.py \
+    --model gemini/gemini-2.5-pro \
+    --instances django__django-11620 django__django-XXXXX \
+    --num-runs 1
+```
+
+**Why this approach works:**
+
+- **Efficient**: You don't lose the successful patches (e.g., 16 out of 20)
+- **Clean separation**: Each run directory represents a complete batch
+- **Better tracking**: Timeout instances get their own timestamped run
+- **Easier debugging**: You can analyze why specific instances timeout
+
+#### Document Timeout Issues
+
+watch this if you get timeout like me https://www.loom.com/share/8cdc4b4a5a22430981cec245461d59e4?sid=e0904a14-fc46-4a3d-953c-f0ee17c34118
+
+When uploading to Google Drive, create a `NOTES.txt` file:
+
+```bash
+RUN_DIR="output/gemini/gemini-2.5-pro/<timestamp>"
+cd $RUN_DIR
+
+cat > NOTES.txt << EOF
+Run: $(basename $RUN_DIR)
+Date: $(date)
+
+Timeout Instances (Stage 1):
+- django__django-11620
+- django__django-XXXXX
+- django__django-YYYYY
+
+These instances exceeded the 600-second timeout during patch generation.
+They will be retried in a separate run.
+
+Successful Instances: 16/20
+EOF
+```
+
+#### Quick Timeout Check Script
+
+Create a helper script to identify timeouts:
+
+```bash
+# Save as check_timeouts.sh
+#!/bin/bash
+RUN_DIR=${1:-"output/gemini/gemini-2.5-pro/$(ls -t output/gemini/gemini-2.5-pro/ | head -1)"}
+
+echo "Checking timeouts in: $RUN_DIR"
+echo "================================"
+echo ""
+echo "Timeout instances:"
+for instance in $RUN_DIR/*/; do
+  if [ -f "$instance/run_1/metadata.json" ]; then
+    if grep -q "\"status\": \"timeout\"" "$instance/run_1/metadata.json"; then
+      instance_id=$(basename "$instance")
+      echo "  - $instance_id"
+    fi
+  fi
+done
+
+echo ""
+echo "Successful instances:"
+for instance in $RUN_DIR/*/; do
+  if [ -f "$instance/run_1/patch.diff" ]; then
+    instance_id=$(basename "$instance")
+    echo "  - $instance_id"
+  fi
+done
+```
+
+Usage:
+
+```bash
+chmod +x check_timeouts.sh
+./check_timeouts.sh output/gemini/gemini-2.5-pro/20251014_1411
+```
+
+#### Real Example: Handling 4 Timeouts from 20 Instances
+
+Let's say you ran 20 instances and got 4 timeouts:
+
+```bash
+# Step 1: Identify the situation
+RUN_DIR="output/gemini/gemini-2.5-pro/20251014_1411"
+
+# Check what timed out
+grep -l "\"status\": \"timeout\"" $RUN_DIR/*/run_1/metadata.json
+
+# Output shows:
+# django__django-11620/run_1/metadata.json
+# django__django-11654/run_1/metadata.json
+# django__django-11910/run_1/metadata.json
+# django__django-12125/run_1/metadata.json
+```
+
+```bash
+# Step 2: Continue with the 16 successful instances
+python pipeline_2_create_predictions.py $RUN_DIR
+python pipeline_3_run_evaluation.py $RUN_DIR
+python pipeline_4_security_scan.py $RUN_DIR
+python pipeline_5_consistency_check.py $RUN_DIR
+python pipeline_6_aggregate_results.py $RUN_DIR
+```
+
+```bash
+# Step 3: Create notes file
+cd $RUN_DIR
+cat > NOTES.txt << EOF
+Run: 20251014_1411
+Date: 2025-10-14
+
+Timeout Instances (Stage 1):
+- django__django-11620
+- django__django-11654
+- django__django-11910
+- django__django-12125
+
+These 4 instances exceeded the 600-second timeout during patch generation.
+They will be retried in a separate run.
+
+Successful Instances: 16/20
+Resolution Rate: To be determined after evaluation
+EOF
+```
+
+```bash
+# Step 4: Retry the 4 timeout instances
+python run_pipeline.py \
+    --model gemini/gemini-2.5-pro \
+    --instances django__django-11620 django__django-11654 \
+                django__django-11910 django__django-12125 \
+    --num-runs 1
+```
+
+This creates a new run (e.g., `20251014_1545/`) with just those 4 instances.
+
+**Final Result:**
+- First run: 16 successful instances with complete evaluation
+- Second run: 4 retry instances with complete evaluation
+- Upload both runs to Google Drive with documentation
 
 ## Quick Reference Commands
 
