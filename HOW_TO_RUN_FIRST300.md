@@ -316,33 +316,6 @@ cat output/gemini/gemini-2.5-pro/*/run_summary.json
 # (Manual upload through browser or use gdrive CLI)
 ```
 
-## Expected Output Structure
-
-```
-output/
-   gemini/gemini-2.5-pro/
-       20251014_1830/                    # Your run timestamp
-           config.json
-           run_summary.json              # � Main results file
-           results.csv                   # � CSV export
-           stage1_summary.json
-           stage2_summary.json
-           stage3_summary.json
-           stage4_summary.json
-           stage5_summary.json
-           stage6_summary.json
-           predictions_all_run1.json
-           evaluation_results_run1.json
-           django__django-10914/         # Per instance
-               run_1/
-                   patch.diff            # Generated code fix
-                   prediction.json
-                   evaluation.json       # Pass/fail result
-                   trajectory.json
-                   metadata.json         # Cost & timing
-                   security_risk_score.json
-```
-
 ## Support
 
 - For technical issues: Check the troubleshooting section above
@@ -355,11 +328,11 @@ output/
 - [PIPELINE_README.md](PIPELINE_README.md) - Detailed pipeline documentation
 - [HOW_TO_USE_PIPELINE.md](HOW_TO_USE_PIPELINE.md) - Comprehensive usage guide
 - [Multi-Model Guide](features/multi-model-support/MULTI_MODEL_GUIDE.md) - Using different AI providers
-- [Example Scripts](examples/) - Ready-to-use examples
 
 ---
 
 **Remember:**
+
 1. Start with 6-10 instances to test
 2. Monitor Docker and ensure it stays running
 3. Check the output regularly for errors
