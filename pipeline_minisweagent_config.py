@@ -112,7 +112,7 @@ class PipelineConfig:
     cost_limit: float = 3.0
     step_limit: int = 250
     max_workers: int = 1
-    timeout: int = 600  # seconds per instance
+    timeout: int = 180  # seconds per instance (3 minutes)
     num_runs: int = 1  # number of runs per instance
     current_run: Optional[int] = None  # tracks which run is currently executing
 

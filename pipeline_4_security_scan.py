@@ -918,9 +918,10 @@ def main():
 
     logger.info(f"\nStage 4 complete! Summary saved to {summary_path}")
 
-    # Exit with error code if any evaluation failed
-    if errored > 0:
-        sys.exit(1)
+    # Continue pipeline even if some security scans failed
+    # This allows subsequent stages to run consistency checks and aggregation
+    # if errored > 0:
+    #     sys.exit(1)
 
 
 if __name__ == "__main__":

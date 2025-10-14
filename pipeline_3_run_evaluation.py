@@ -49,10 +49,18 @@ class SWEBenchEvaluator:
         """
         runs = []
         for item in self.run_dir.iterdir():
-            if item.is_file() and item.name.startswith("predictions_all_run") and item.name.endswith(".json"):
+            if (
+                item.is_file()
+                and item.name.startswith("predictions_all_run")
+                and item.name.endswith(".json")
+            ):
                 try:
                     # Extract run number from "predictions_all_run{N}.json"
-                    run_num = int(item.name.replace("predictions_all_run", "").replace(".json", ""))
+                    run_num = int(
+                        item.name.replace("predictions_all_run", "").replace(
+                            ".json", ""
+                        )
+                    )
                     runs.append(run_num)
                 except ValueError:
                     logger.warning(f"Invalid predictions file name: {item.name}")
@@ -100,7 +108,9 @@ class SWEBenchEvaluator:
             }
 
         # Create unique run ID for this evaluation
-        base_run_id = f"{self.config['model_name'].replace('/', '_')}_{self.config['timestamp']}"
+        base_run_id = (
+            f"{self.config['model_name'].replace('/', '_')}_{self.config['timestamp']}"
+        )
         if run_number is not None:
             run_id = f"{base_run_id}_run{run_number}"
         else:
@@ -137,13 +147,13 @@ class SWEBenchEvaluator:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=7200,  # 2 hours max
+                timeout=1200,  # 20 mins max
             )
 
             elapsed_time = time.time() - start_time
 
             if result.returncode != 0:
-                logger.error(f"❌ SWE-bench evaluation failed")
+                logger.error("❌ SWE-bench evaluation failed")
                 logger.error(f"STDERR: {result.stderr}")
                 return {
                     "stage": "3_run_evaluation",
@@ -159,10 +169,14 @@ class SWEBenchEvaluator:
             eval_results_path = Path(f"{run_id}.json")
             if not eval_results_path.exists():
                 # Try alternative naming
-                eval_results_path = Path(f"{self.config['model_name'].replace('/', '_')}.{run_id}.json")
+                eval_results_path = Path(
+                    f"{self.config['model_name'].replace('/', '_')}.{run_id}.json"
+                )
 
             if not eval_results_path.exists():
-                logger.warning(f"Evaluation results file not found: {eval_results_path}")
+                logger.warning(
+                    f"Evaluation results file not found: {eval_results_path}"
+                )
                 # Try to find it in current directory
                 possible_files = list(Path(".").glob(f"*{run_id}*.json"))
                 if possible_files:
@@ -186,7 +200,9 @@ class SWEBenchEvaluator:
 
             # Move aggregated results to run directory
             if run_number is not None:
-                aggregated_eval_path = self.run_dir / f"evaluation_results_run{run_number}.json"
+                aggregated_eval_path = (
+                    self.run_dir / f"evaluation_results_run{run_number}.json"
+                )
             else:
                 aggregated_eval_path = self.run_dir / "evaluation_results.json"
             eval_results_path.rename(aggregated_eval_path)
@@ -205,12 +221,12 @@ class SWEBenchEvaluator:
                 "run_number": run_number,
             }
 
-            logger.info(f"\n{'='*80}")
+            logger.info(f"\n{'=' * 80}")
             if run_number is not None:
                 logger.info(f"📊 EVALUATION RESULTS (RUN {run_number})")
             else:
-                logger.info(f"📊 EVALUATION RESULTS")
-            logger.info(f"{'='*80}")
+                logger.info("📊 EVALUATION RESULTS")
+            logger.info(f"{'=' * 80}")
             logger.info(f"Total instances: {result['total_instances']}")
             logger.info(f"✅ Resolved: {result['resolved']}")
             logger.info(f"❌ Unresolved: {result['unresolved']}")
@@ -233,6 +249,7 @@ class SWEBenchEvaluator:
             elapsed_time = time.time() - start_time
             logger.error(f"❌ Evaluation error: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             return {
                 "status": "error",
@@ -286,18 +303,34 @@ class SWEBenchEvaluator:
 
             all_results = []
             for run_num in runs:
-                logger.info(f"\n{'='*80}")
+                logger.info(f"\n{'=' * 80}")
                 logger.info(f"🔄 Processing run {run_num} of {len(runs)}")
-                logger.info(f"{'='*80}")
+                logger.info(f"{'=' * 80}")
 
                 result = self._run_evaluation_for_run(run_number=run_num)
                 all_results.append(result)
 
             # Calculate aggregated statistics
-            total_instances = sum(r.get("total_instances", 0) for r in all_results if r.get("status") == "success")
-            total_resolved = sum(r.get("resolved", 0) for r in all_results if r.get("status") == "success")
-            total_unresolved = sum(r.get("unresolved", 0) for r in all_results if r.get("status") == "success")
-            total_errors = sum(r.get("error_instances", 0) for r in all_results if r.get("status") == "success")
+            total_instances = sum(
+                r.get("total_instances", 0)
+                for r in all_results
+                if r.get("status") == "success"
+            )
+            total_resolved = sum(
+                r.get("resolved", 0)
+                for r in all_results
+                if r.get("status") == "success"
+            )
+            total_unresolved = sum(
+                r.get("unresolved", 0)
+                for r in all_results
+                if r.get("status") == "success"
+            )
+            total_errors = sum(
+                r.get("error_instances", 0)
+                for r in all_results
+                if r.get("status") == "success"
+            )
             total_time = sum(r.get("elapsed_time", 0) for r in all_results)
 
             # Group statistics by run
@@ -328,9 +361,9 @@ class SWEBenchEvaluator:
             }
 
             # Display summary
-            logger.info(f"\n{'='*80}")
-            logger.info(f"📊 STAGE 3 SUMMARY (ALL RUNS)")
-            logger.info(f"{'='*80}")
+            logger.info(f"\n{'=' * 80}")
+            logger.info("📊 STAGE 3 SUMMARY (ALL RUNS)")
+            logger.info(f"{'=' * 80}")
             logger.info(f"Number of runs: {len(runs)}")
             logger.info(f"Total instances evaluated: {total_instances}")
             logger.info(f"✅ Total resolved: {total_resolved}")
@@ -339,13 +372,13 @@ class SWEBenchEvaluator:
             logger.info(f"⏱️ Total time: {total_time:.1f}s")
 
             # Show per-run breakdown
-            logger.info(f"\n{'='*80}")
-            logger.info(f"📊 PER-RUN BREAKDOWN")
-            logger.info(f"{'='*80}")
+            logger.info(f"\n{'=' * 80}")
+            logger.info("📊 PER-RUN BREAKDOWN")
+            logger.info(f"{'=' * 80}")
             for run_key, stats in per_run_stats.items():
                 logger.info(f"\n{run_key}:")
                 logger.info(f"  Status: {stats['status']}")
-                if stats['status'] == "success":
+                if stats["status"] == "success":
                     logger.info(f"  ✅ Resolved: {stats['resolved']}")
                     logger.info(f"  ❌ Unresolved: {stats['unresolved']}")
                     logger.info(f"  ⚠️ Errors: {stats['error_instances']}")
@@ -360,7 +393,9 @@ class SWEBenchEvaluator:
             run_number: Run number (None for legacy single-run structure)
         """
         run_info = f" (run {run_number})" if run_number else ""
-        logger.info(f"Distributing evaluation results to instance directories{run_info}")
+        logger.info(
+            f"Distributing evaluation results to instance directories{run_info}"
+        )
 
         # SWE-bench results don't have per-instance details in the main JSON
         # We mark each instance as resolved/unresolved based on the lists
@@ -411,9 +446,7 @@ class SWEBenchEvaluator:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Stage 3: Run SWE-bench evaluation"
-    )
+    parser = argparse.ArgumentParser(description="Stage 3: Run SWE-bench evaluation")
     parser.add_argument(
         "run_dir",
         type=str,
@@ -450,6 +483,7 @@ def main():
         if logs_dir.exists():
             logger.info(f"🗑️  Deleting cached logs: {logs_dir}")
             import shutil
+
             shutil.rmtree(logs_dir)
             logger.info("✅ Cached logs deleted")
         else:
@@ -466,9 +500,10 @@ def main():
 
     logger.info(f"\n✅ Stage 3 complete! Summary saved to {summary_path}")
 
-    # Exit with error code if evaluation failed
-    if summary.get("status") != "success":
-        sys.exit(1)
+    # Continue pipeline even if evaluation failed
+    # This allows subsequent stages to run security scans and aggregation
+    # if summary.get("status") != "success":
+    #     sys.exit(1)
 
 
 if __name__ == "__main__":

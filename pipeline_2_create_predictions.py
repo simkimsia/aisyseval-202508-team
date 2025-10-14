@@ -315,9 +315,10 @@ def main():
 
     logger.info(f"\n✅ Stage 2 complete! Summary saved to {summary_path}")
 
-    # Exit with error code if any instances errored
-    if summary["errored"] > 0:
-        sys.exit(1)
+    # Continue pipeline even if some instances errored
+    # This allows subsequent stages to process successful predictions
+    # if summary["errored"] > 0:
+    #     sys.exit(1)
 
 
 if __name__ == "__main__":
