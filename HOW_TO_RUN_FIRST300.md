@@ -287,6 +287,8 @@ Monitor your API usage and costs:
 
 ### Issue: Stage 1 Timeout (Common with Large Batches)
 
+Watch this if you get timeout like me https://www.loom.com/share/8cdc4b4a5a22430981cec245461d59e4?sid=e0904a14-fc46-4a3d-953c-f0ee17c34118
+
 When running multiple instances, some may timeout at Stage 1. Here's how to handle it:
 
 #### Identifying Timeout Instances
@@ -371,8 +373,6 @@ python run_pipeline.py \
 - **Easier debugging**: You can analyze why specific instances timeout
 
 #### Document Timeout Issues
-
-watch this if you get timeout like me https://www.loom.com/share/8cdc4b4a5a22430981cec245461d59e4?sid=e0904a14-fc46-4a3d-953c-f0ee17c34118
 
 When uploading to Google Drive, create a `NOTES.txt` file:
 
