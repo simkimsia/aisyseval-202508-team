@@ -142,42 +142,55 @@ class SWEBenchEvaluator:
 
             logger.info(f"Running: {' '.join(cmd)}")
 
+            # Instance-based timeout: 12 minutes per instance
+            timeout_per_instance = 720  # 12 minutes
+            total_timeout = timeout_per_instance * len(predictions)
+
+            logger.info(f"⏱️ Timeout: {total_timeout}s ({total_timeout/60:.0f} mins) for {len(predictions)} instances")
+
             # Run evaluation
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=1200,  # 20 mins max
+                timeout=total_timeout,
             )
 
             elapsed_time = time.time() - start_time
 
             if result.returncode != 0:
                 logger.error("❌ SWE-bench evaluation failed")
-                logger.error(f"STDERR: {result.stderr}")
+                logger.error(f"STDERR: {result.stderr[:1000]}")  # Show first 1000 chars
                 return {
                     "stage": "3_run_evaluation",
                     "status": "error",
                     "error": f"Evaluation failed with return code {result.returncode}",
-                    "stderr": result.stderr,
+                    "stderr": result.stderr[:1000] if result.stderr else "",  # Truncate for JSON
                     "elapsed_time": elapsed_time,
                 }
 
             logger.info(f"✅ SWE-bench evaluation completed in {elapsed_time:.1f}s")
 
             # Find and parse evaluation results
-            eval_results_path = Path(f"{run_id}.json")
-            if not eval_results_path.exists():
-                # Try alternative naming
-                eval_results_path = Path(
-                    f"{self.config['model_name'].replace('/', '_')}.{run_id}.json"
-                )
+            # SWE-bench creates files with pattern: {model_name_with_underscores}.{run_id}.json
+            # Try multiple naming patterns to find the results file
+            possible_patterns = [
+                f"{run_id}.json",  # Simple pattern
+                f"{self.config['model_name'].replace('/', '_')}.{run_id}.json",  # Single underscore
+                f"{self.config['model_name'].replace('/', '__')}.{run_id}.json",  # Double underscore
+            ]
 
-            if not eval_results_path.exists():
-                logger.warning(
-                    f"Evaluation results file not found: {eval_results_path}"
-                )
-                # Try to find it in current directory
+            eval_results_path = None
+            for pattern in possible_patterns:
+                candidate = Path(pattern)
+                if candidate.exists():
+                    eval_results_path = candidate
+                    logger.info(f"Found evaluation results: {eval_results_path}")
+                    break
+
+            if not eval_results_path:
+                # Fallback: glob search for any file matching run_id
+                logger.info(f"Searching for evaluation results matching *{run_id}*.json")
                 possible_files = list(Path(".").glob(f"*{run_id}*.json"))
                 if possible_files:
                     eval_results_path = possible_files[0]
