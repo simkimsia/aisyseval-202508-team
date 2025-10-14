@@ -12,11 +12,11 @@ Before you begin, ensure you have:
 - Access to the Google Drive for uploading results
 - Google API key (will be shared via Telegram)
 
-Repository: https://github.com/simkimsia/aisyseval-202508-team/tree/feat/8-multiple-run and the branch is `feat/8-multiple-run`
+[Repository](https://github.com/simkimsia/aisyseval-202508-team/tree/feat/8-multiple-run) and the branch is `feat/8-multiple-run`
 
-Main data folder is: https://drive.google.com/drive/folders/18JLCTe-E6zvny5ZwJECLUz_sf0mBNAas?usp=drive_link
+[Main data folder](https://drive.google.com/drive/folders/18JLCTe-E6zvny5ZwJECLUz_sf0mBNAas?usp=drive_link)
 
-Loom walkthrough: https://www.loom.com/share/0dc3684ab2c64c7283ea60430d0be9d3
+[Loom walkthrough](https://www.loom.com/share/0dc3684ab2c64c7283ea60430d0be9d3)
 
 ## Step 1: Clone the Repository
 
