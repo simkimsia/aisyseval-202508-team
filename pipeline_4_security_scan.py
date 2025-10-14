@@ -818,7 +818,22 @@ def main():
         runs = _discover_runs(instance_dir)
 
         if not runs:
-            # Legacy single-run structure
+            # Legacy single-run structure - check if patch.diff exists
+            patch_path = instance_dir / "patch.diff"
+            if not patch_path.exists():
+                logger.warning(f"Skipping {instance_id}: No patch.diff found (likely timeout or failed)")
+                skipped += 1
+                results.append(
+                    {
+                        "instance_id": instance_id,
+                        "run_number": None,
+                        "status": "skipped",
+                        "reason": "No patch.diff found",
+                        "security_risk_score_path": None,
+                    }
+                )
+                continue
+
             logger.info(f"Processing {instance_id} (single-run structure)")
             summary = secscanner.run_security_risk_scorer(dataset_id, instance_id, run_number=None)
             summary_path = run_dir / instance_id / "security_risk_score.json"
@@ -846,6 +861,22 @@ def main():
             # Multi-run structure
             logger.info(f"Processing {instance_id} with {len(runs)} runs")
             for run_num in runs:
+                # Check if patch.diff exists for this run
+                patch_path = instance_dir / f"run_{run_num}" / "patch.diff"
+                if not patch_path.exists():
+                    logger.warning(f"Skipping {instance_id} run_{run_num}: No patch.diff found (likely timeout or failed)")
+                    skipped += 1
+                    results.append(
+                        {
+                            "instance_id": instance_id,
+                            "run_number": run_num,
+                            "status": "skipped",
+                            "reason": "No patch.diff found",
+                            "security_risk_score_path": None,
+                        }
+                    )
+                    continue
+
                 logger.info(f"  Run {run_num} of {len(runs)}")
                 summary = secscanner.run_security_risk_scorer(dataset_id, instance_id, run_number=run_num)
                 summary_path = run_dir / instance_id / f"run_{run_num}" / "security_risk_score.json"
