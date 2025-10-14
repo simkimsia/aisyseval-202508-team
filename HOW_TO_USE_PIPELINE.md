@@ -264,7 +264,20 @@ python run_pipeline.py \
 
 ---
 
-### Example 2: Multiple Instances with Temperature
+### Example 2: Multiple Instances with Single Run
+
+```bash
+python run_pipeline.py \
+    --model gemini/gemini-2.5-pro \
+    --instances django__django-10914 django__django-10097 django__django-11099 \
+    --num-runs 1
+```
+
+**Result:** Evaluates 3 instances with 1 run each (default `--num-runs 1`) in `output/gemini/gemini-2.5-pro/<timestamp>/`
+
+---
+
+### Example 3: Multiple Instances with Multiple Runs and Temperature
 
 ```bash
 python run_pipeline.py \
@@ -275,9 +288,11 @@ python run_pipeline.py \
     --stages all
 ```
 
+**Result:** Evaluates 3 instances with 2 runs each for consistency analysis.
+
 ---
 
-### Example 3: Stage 1 Only for Quick Testing
+### Example 5: Stage 1 Only for Quick Testing
 
 ```bash
 python run_pipeline.py \
@@ -302,7 +317,7 @@ python pipeline_6_aggregate_results.py output/gpt-4-turbo/20251009_1830
 
 ---
 
-### Example 4: Custom Config
+### Example 6: Custom Config
 
 ```bash
 python run_pipeline.py \
