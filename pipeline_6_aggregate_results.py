@@ -140,22 +140,30 @@ class ResultsAggregator:
                         "resolved": False,
                     })
 
+                error_result_json = {
+                    "security_risk_score": None,
+                    "security_risk_level": "UNKNOWN",
+                    "security_scan_status": "error",
+                }
                 # Load security risk score
                 if security_risk_score_path.exists():
                     with open(security_risk_score_path, "r") as f:
                         security_data = json.load(f)
+                    print(security_risk_score_path)
+
+
                     security_risk_score_result = security_data.get("security_risk_score_result", {})
+                    
+                    if not security_risk_score_result:
+                        security_risk_score_result = error_result_json
+
                     instance_result.update({
                         "security_risk_score": security_risk_score_result.get("security_risk_score", None),
                         "security_risk_level": security_risk_score_result.get("risk_level", "UNKNOWN"),
                         "security_scan_status": security_data.get("status", "error"),
                     })
                 else:
-                    instance_result.update({
-                        "security_risk_score": None,
-                        "security_risk_level": "UNKNOWN",
-                        "security_scan_status": "error",
-                    })
+                    instance_result.update(error_result_json)
 
                 results.append(instance_result)
 
