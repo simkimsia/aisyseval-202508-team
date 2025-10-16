@@ -27,9 +27,10 @@ logger = logging.getLogger(__name__)
 class SWEBenchEvaluator:
     """Runs SWE-bench evaluation on predictions."""
 
-    def __init__(self, run_dir: Path):
+    def __init__(self, run_dir: Path, timeout_override: int = None):
         self.run_dir = Path(run_dir)
         self.config = self._load_config()
+        self.timeout_override = timeout_override
 
     def _load_config(self) -> Dict:
         """Load configuration from run directory."""
@@ -142,8 +143,25 @@ class SWEBenchEvaluator:
 
             logger.info(f"Running: {' '.join(cmd)}")
 
-            # Instance-based timeout: 12 minutes per instance
-            timeout_per_instance = 720  # 12 minutes
+            # Instance-based timeout: varies by repository complexity
+            # Determine timeout based on instance repository
+            if self.timeout_override:
+                # Use explicit override if provided
+                timeout_per_instance = self.timeout_override
+                logger.info(f"Using timeout override: {timeout_per_instance}s per instance")
+            elif predictions:
+                first_instance = predictions[0].get("instance_id", "")
+                if "matplotlib" in first_instance:
+                    timeout_per_instance = 1800  # 30 minutes for matplotlib (large test suite)
+                elif "django" in first_instance:
+                    timeout_per_instance = 1200  # 20 minutes for django
+                elif "sympy" in first_instance:
+                    timeout_per_instance = 1500  # 25 minutes for sympy
+                else:
+                    timeout_per_instance = 900  # 15 minutes default
+            else:
+                timeout_per_instance = 900  # 15 minutes default
+
             total_timeout = timeout_per_instance * len(predictions)
 
             logger.info(f"⏱️ Timeout: {total_timeout}s ({total_timeout/60:.0f} mins) for {len(predictions)} instances")
@@ -476,6 +494,12 @@ def main():
         action="store_true",
         help="Delete cached logs before running evaluation (forces fresh evaluation)",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        help="Override timeout per instance in seconds (default: auto-detect based on repository)",
+    )
 
     args = parser.parse_args()
 
@@ -503,7 +527,7 @@ def main():
             logger.info(f"No cached logs found at {logs_dir}")
 
     # Run evaluation
-    evaluator = SWEBenchEvaluator(run_dir)
+    evaluator = SWEBenchEvaluator(run_dir, timeout_override=args.timeout)
     summary = evaluator.run_evaluation(specific_run=args.run_number)
 
     # Save stage summary

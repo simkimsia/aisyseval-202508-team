@@ -11,6 +11,7 @@ This script runs mini-swe-agent on each SWE-bench instance to generate:
 import argparse
 import json
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -89,12 +90,15 @@ class PatchGenerator:
             # Run mini-swe-agent with activity-based timeout
             # This monitors for INACTIVITY rather than total runtime
             # Allows long-running processes that are actively working
+            # Pass environment variables (including those from .env) to subprocess
+            env = os.environ.copy()
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,  # Line buffered
+                env=env,  # Explicitly pass environment variables
             )
 
             stdout_lines = []
