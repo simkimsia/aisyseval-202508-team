@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 
 from pathlib import Path
 from typing import Dict
@@ -734,8 +735,11 @@ class SecurityScanner:
             }
 
         except Exception as e:
-            import traceback
-
+            # Remove the tmp_repo directory if it exists
+            tmpdir = Path(self.run_dir) / target_instance / "tmp_repo"
+            if tmpdir.exists():
+                shutil.rmtree(tmpdir)
+            
             logger.error(traceback.format_exc())
             return {
                 "instance_id": target_instance,
