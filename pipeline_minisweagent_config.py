@@ -20,6 +20,7 @@ class ModelProvider(Enum):
     TOGETHER = "together"
     DEEPSEEK = "deepseek"
     UNKNOWN = "unknown"
+    CEREBRAS="cerebras"
 
 
 def detect_provider(model_name: str) -> ModelProvider:
@@ -55,6 +56,8 @@ def detect_provider(model_name: str) -> ModelProvider:
         return ModelProvider.TOGETHER
     if model_lower.startswith("deepseek/"):
         return ModelProvider.DEEPSEEK
+    if model_lower.startswith("cerebras/"):
+        return ModelProvider.CEREBRAS
 
     # Check for common model name patterns (without prefix)
     if model_lower.startswith("claude"):
@@ -90,6 +93,7 @@ def get_api_key_env_var(provider: ModelProvider) -> str:
         ModelProvider.GOOGLE: "GEMINI_API_KEY",
         ModelProvider.TOGETHER: "TOGETHER_API_KEY",
         ModelProvider.DEEPSEEK: "DEEPSEEK_API_KEY",
+        ModelProvider.CEREBRAS: "CEREBRAS_API_KEY",
     }
     return env_var_map.get(provider, "API_KEY")
 
