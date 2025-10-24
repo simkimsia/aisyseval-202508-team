@@ -45,7 +45,7 @@ The run_summary.json file has 5 main sections:
 
   5. instance_results (line 264)
 
-  Detailed array of results for each instance-run combination, including:
+  Detailed array of results for **each instance-run combination** (one entry per run), including:
 
 - instance_id, run_number
 - resolved: Whether the issue was fixed
@@ -53,6 +53,8 @@ The run_summary.json file has 5 main sections:
 - cost, api_calls, generation_time
 - patch_size, exit_status, error
 - security_risk_score, security_risk_level, security_scan_status
+
+**Note**: Similarity scores (AST, text, hybrid) are NOT at the instance-run level. They are at the instance level in the `multi_run_info.consistency_metrics.instance_reports` section.
 
   6. Instance Lists (lines 265-268)
 
@@ -202,6 +204,83 @@ Example from a real consistency report:
 **2. Aggregated summary**: `{run_dir}/consistency_summary.json`
 
 Contains averaged metrics across all instances, plus the full instance reports in the `instance_reports` array.
+
+### How to Extract Similarity Scores
+
+**Important**: Similarity scores are at the **instance level** (comparing all runs of an instance), NOT at the instance-run level.
+
+**Instance-Run Level Data** (results.csv):
+```bash
+# Easy - just use the CSV file
+cat {run_dir}/results.csv
+```
+Contains: instance_id, run_number, cost, security_risk_score, resolved, etc.
+
+**Instance Level Data** (similarity scores):
+
+**Option 1: From run_summary.json**
+```bash
+# Extract similarity data from run_summary.json
+jq '.multi_run_info.consistency_metrics.instance_reports[] | {
+  instance_id,
+  num_runs,
+  avg_ast_similarity: .patch_consistency.avg_ast_similarity,
+  avg_text_similarity: .patch_consistency.avg_text_similarity,
+  avg_hybrid_similarity: .patch_consistency.avg_hybrid_similarity,
+  overall_consistency_score,
+  consistency_grade
+}' {run_dir}/run_summary.json
+```
+
+**Option 2: From individual consistency reports**
+```bash
+# Extract from each instance's consistency report
+jq '{
+  instance_id,
+  avg_ast_similarity: .patch_consistency.avg_ast_similarity,
+  avg_text_similarity: .patch_consistency.avg_text_similarity,
+  avg_hybrid_similarity: .patch_consistency.avg_hybrid_similarity,
+  overall_consistency_score,
+  consistency_grade
+}' {run_dir}/{instance_id}/consistency_report.json
+```
+
+**Option 3: Create a CSV with Python**
+```python
+import json
+import csv
+
+# Load run_summary.json
+with open('run_summary.json') as f:
+    data = json.load(f)
+
+# Extract instance-level consistency data
+instance_reports = data['multi_run_info']['consistency_metrics'].get('instance_reports', [])
+
+# Write to CSV
+with open('consistency_scores.csv', 'w', newline='') as f:
+    writer = csv.DictWriter(f, fieldnames=[
+        'instance_id', 'num_runs', 'avg_ast_similarity',
+        'avg_text_similarity', 'avg_hybrid_similarity',
+        'overall_consistency_score', 'consistency_grade'
+    ])
+    writer.writeheader()
+
+    for report in instance_reports:
+        writer.writerow({
+            'instance_id': report['instance_id'],
+            'num_runs': report['num_runs'],
+            'avg_ast_similarity': report['patch_consistency']['avg_ast_similarity'],
+            'avg_text_similarity': report['patch_consistency']['avg_text_similarity'],
+            'avg_hybrid_similarity': report['patch_consistency']['avg_hybrid_similarity'],
+            'overall_consistency_score': report['overall_consistency_score'],
+            'consistency_grade': report['consistency_grade']
+        })
+```
+
+**Key Difference**:
+- `results.csv` → Instance-run level (3 runs = 3 rows for same instance)
+- Similarity scores → Instance level (3 runs = 1 row comparing all 3)
 
 ---
 
