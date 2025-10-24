@@ -121,6 +121,88 @@ Checks if security scores vary wildly across runs:
 - **50-69**: FAIR (somewhat inconsistent)
 - **Below 50**: POOR (unreliable)
 
+### Where to Find Detailed Consistency Breakdowns
+
+The detailed consistency metrics including AST similarity are stored in separate files:
+
+**1. Per-instance reports**: `{run_dir}/{instance_id}/consistency_report.json`
+
+Example from a real consistency report:
+
+```json
+{
+  "instance_id": "django__django-10914",
+  "num_runs": 3,
+  "patch_consistency": {
+    "confidence_percent": 35.57,
+    "exact_match_rate": 0.3333,
+    "num_unique_patches": 3,
+    "agreement_percent": 33.33,
+    "normalized_confidence_percent": 0.0,
+    "avg_ast_similarity": 0.3442,
+    "avg_text_similarity": 0.3827,
+    "avg_hybrid_similarity": 0.3557,
+    "line_count_variance": 32601.33,
+    "pairwise_comparisons": [
+      {
+        "i": 0,
+        "j": 1,
+        "ast_similarity": 0.9100,
+        "text_similarity": 0.9140,
+        "hybrid_similarity": 0.9112
+      },
+      {
+        "i": 0,
+        "j": 2,
+        "ast_similarity": 0.0665,
+        "text_similarity": 0.1264,
+        "hybrid_similarity": 0.0845
+      },
+      {
+        "i": 1,
+        "j": 2,
+        "ast_similarity": 0.0560,
+        "text_similarity": 0.1076,
+        "hybrid_similarity": 0.0715
+      }
+    ]
+  },
+  "evaluation_consistency": {
+    "all_resolved": true,
+    "all_failed": false,
+    "resolution_rate": 1.0,
+    "num_evaluations": 3
+  },
+  "security_consistency": {
+    "risk_level_mode": "NONE",
+    "score_variance": 0.0,
+    "num_scans": 3,
+    "avg_score": 0.0
+  },
+  "overall_consistency_score": 73.78,
+  "consistency_grade": "GOOD",
+  "component_scores": {
+    "patch_score": 34.45,
+    "evaluation_score": 100.0,
+    "security_score": 100.0
+  }
+}
+```
+
+**Key metrics in the detailed breakdown:**
+
+- **`avg_ast_similarity`**: Average structural code similarity across all run pairs (0.0-1.0)
+- **`avg_text_similarity`**: Average surface-level text similarity (0.0-1.0)
+- **`avg_hybrid_similarity`**: Weighted combination of AST and text similarity (0.0-1.0)
+- **`pairwise_comparisons`**: Every run compared to every other run
+  - For 3 runs: compares run_0 vs run_1, run_0 vs run_2, run_1 vs run_2
+  - Each comparison shows individual AST, text, and hybrid similarity scores
+- **`component_scores`**: Breakdown of the overall score into patch (40%), evaluation (40%), and security (20%) components
+
+**2. Aggregated summary**: `{run_dir}/consistency_summary.json`
+
+Contains averaged metrics across all instances, plus the full instance reports in the `instance_reports` array.
+
 ---
 
 ## 🔒 Security Risk Score Explained (Stage 4)
@@ -166,17 +248,42 @@ For each tool, it counts **new security issues** introduced by the patch, catego
 - **LOW**: Score between 0.01-2.99
 - **NONE**: Score = 0 (no new issues!)
 
-### The 3 Security Values Explained
+### The 3 Security Values in `instance_results`
 
-1. **security_risk_score** (line 580): The numerical score (e.g., 2.5, 15.3)
+Here's an example from an actual `run_summary.json`:
+
+```json
+{
+  "instance_id": "django__django-13028",
+  "run_number": 1,
+  "patch_exists": true,
+  "patch_size": 681,
+  "generation_status": "completed",
+  "evaluation_status": "resolved",
+  "resolved": true,
+  "security_risk_score": 0.0,
+  "security_risk_level": "NONE",
+  "security_scan_status": "success"
+}
+```
+
+**Explanation of each field:**
+
+1. **`security_risk_score`**: A **quantitative floating-point number**
+   - Range: 0.0 and up (typically 0-20)
+   - Examples: `0.0`, `2.5`, `15.3`, `null` (if scan failed)
+   - Formula: `total_weighted_score / (patch_size / 100)`
    - *Layman*: "How many security problems per 100 lines of code"
 
-2. **security_risk_level** (line 581): HIGH / MEDIUM / LOW / NONE
+2. **`security_risk_level`**: A **categorical label** (string)
+   - Values: `"NONE"`, `"LOW"`, `"MEDIUM"`, `"HIGH"`, `"UNKNOWN"`
+   - Derived from the numeric score using thresholds
    - *Layman*: "Quick risk assessment - should I be worried?"
 
-3. **security_scan_status** (lines 731, 747): "success" or "error"
+3. **`security_scan_status`**: A **status indicator** (string)
+   - Values: `"success"` or `"error"`
    - *Layman*: "Did the security scan complete successfully?"
-   - If "error", the risk score and level will be missing/unreliable
+   - If `"error"`, the risk score will be `null` and level will be `"UNKNOWN"`
 
 ---
 
