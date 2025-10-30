@@ -17,11 +17,13 @@ The consistency checker uses a **three-tier approach** combining:
 **Hey Ryan! Here's what we use from your `consistency_evaluator`:**
 
 ### Functions Used
+
 ✅ **`consistency_metrics()`** - Main function we call directly (line 173)
 ✅ **`hybrid_similarity()`** - Called internally by `consistency_metrics()`
 ❌ **`ast_similarity()`, `text_similarity()`, `normalize_python_code()`** - Only used internally by your code
 
 ### How It Works
+
 1. **We call once**: `consistency_metrics(patches, "python", 0.85)` → pipeline_5_consistency_check.py:173
 2. **You return**: `agreement%`, `confidence%`, `normalized_confidence%`, and pairwise details
 3. **We compute averages**: From your pairwise data, we extract `avg_ast_similarity`, `avg_text_similarity`, `avg_hybrid_similarity` → pipeline_5_consistency_check.py:180-182
@@ -31,20 +33,24 @@ The consistency checker uses a **three-tier approach** combining:
 ### What Ends Up in the CSV
 
 **From your code:**
+
 - `confidence_percent`, `agreement_percent`, `normalized_confidence_percent` (direct returns)
 - `avg_ast_similarity`, `avg_text_similarity`, `avg_hybrid_similarity` (we average your pairwise data)
 
 **From our pipeline:**
+
 - `exact_match_rate`, `num_unique_patches`, `line_count_variance`
 
 **Composite scores (our pipeline combines everything):**
+
 - `patch_score` = 50% exact_match + 50% your confidence_percent
 - `evaluation_score` = based on test pass/fail consistency
 - `security_score` = based on security scan consistency
-- `overall_consistency_score` = 40% patch + 40% eval + 20% security
+- **`overall_consistency_score`** = 40% patch + 40% eval + 20% security ← **THIS is "Consistency" in our results**
 - `consistency_grade` = EXCELLENT/GOOD/FAIR/POOR
 
 **See these sections for details:**
+
 - [Concrete Example](#concrete-example-number-flow-through-the-system) - Actual numbers flowing through
 - [Composite Scores](#composite-scores-how-they-add-up) - How the percentages add up
 
@@ -76,17 +82,20 @@ from consistency_evaluator.similarity_utils import hybrid_similarity, consistenc
 ```
 
 **Primary function**: `consistency_metrics()` (line 173)
+
 - This is the **main workhorse** that:
   - Takes a list of patch strings
   - Performs all pairwise comparisons
   - Returns 4 values: agreement%, confidence%, normalized_confidence%, and pairwise details
 
 **Secondary function**: `hybrid_similarity()` (indirectly used)
+
 - Called internally by `consistency_metrics()`
 - Not directly called by the pipeline
 - Computes AST, text, and hybrid similarity for each pair
 
 **Note**: The following functions are NOT directly used by the pipeline:
+
 - `normalize_python_code()` - Only used internally by `ast_similarity()`
 - `ast_similarity()` - Only called internally by `hybrid_similarity()`
 - `text_similarity()` - Only called internally by `hybrid_similarity()`
@@ -256,6 +265,7 @@ record = {
 | **line_count_variance** | 📊 Pipeline-specific | `pipeline_5_consistency_check.py:169-170` |
 
 **Legend:**
+
 - 🎯 **Ryan's** = Directly returned by `consistency_metrics()`
 - 🔧 **Computed** = Calculated from Ryan's pairwise data
 - 📊 **Pipeline** = Independently calculated by pipeline code
@@ -955,21 +965,25 @@ django__django-10914,0.3442,0.3827,0.3557,35.57,33.33,0.3333,3,32601.33
 ### Summary: Which Numbers Come From Where?
 
 **From Ryan's `consistency_metrics()` directly:**
+
 - `confidence_percent` = 35.57 (avg hybrid × 100)
 - `agreement_percent` = 33.33 (% pairs ≥ threshold)
 - `normalized_confidence_percent` = 0.0 (rescaled)
 
 **From Ryan's pairwise data (averaged in pipeline):**
+
 - `avg_ast_similarity` = 0.3442
 - `avg_text_similarity` = 0.3827
 - `avg_hybrid_similarity` = 0.3557
 
 **From pipeline calculations:**
+
 - `exact_match_rate` = 0.3333
 - `num_unique_patches` = 3
 - `line_count_variance` = 32601.33
 
 **Key Insight**: The three "avg_*_similarity" metrics are **NOT** directly returned by `consistency_metrics()`. Instead, the pipeline:
+
 1. Receives the pairwise comparisons from Ryan's function
 2. Extracts the individual similarity scores
 3. Computes the averages
@@ -982,6 +996,86 @@ This is why you see the averaging logic at pipeline_5_consistency_check.py:180-1
 
 The notebook extracts **composite scores** that combine multiple metrics into overall assessments. These are calculated in `pipeline_5_consistency_check.py` lines 298-372.
 
+### What is "Consistency" in Your Results?
+
+**Short answer**: When you report "Consistency" for your model evaluation, you're referring to the **`overall_consistency_score`** (0-100) and its associated **`consistency_grade`** (EXCELLENT/GOOD/FAIR/POOR).
+
+**This score answers**: "How reliably does the model produce consistent behavior across multiple runs of the same task?"
+
+**It measures THREE dimensions**:
+
+1. **Patch consistency** (40%) - Do generated solutions look similar?
+2. **Evaluation consistency** (40%) - Do tests pass/fail consistently?
+3. **Security consistency** (20%) - Are security assessments consistent?
+
+**For reporting results:**
+
+```python
+# Primary metric to report
+overall_consistency_score = 73.78  # Single number (0-100)
+consistency_grade = "GOOD"          # Human-readable label
+
+# Supporting breakdown (optional, for analysis)
+patch_score = 34.45          # Low - model explores different solutions
+evaluation_score = 100.0     # High - all solutions pass tests
+security_score = 100.0       # High - all solutions are safe
+```
+
+**Example result statement:**
+> "GPT-4 achieved an overall consistency score of 73.78 (GOOD) across multiple runs. While the model explored different implementation approaches (patch score: 34.45), all generated solutions consistently passed tests (evaluation score: 100.0) and maintained safe coding practices (security score: 100.0)."
+
+**Key insight**: A model can have LOW patch consistency but HIGH overall consistency if it explores different solutions that all work correctly. This indicates **creative exploration with reliable outcomes**.
+
+### For Correlation Analysis: Use `confidence_percent` Instead
+
+**Important for research:** If you're studying correlations between consistency and correctness (or security), **do NOT use `overall_consistency_score`**. Use **`confidence_percent`** instead.
+
+**Why?** To avoid circular correlations:
+
+```python
+# ❌ CIRCULAR - Don't do this!
+corr(overall_consistency_score, correctness)
+# Problem: overall_consistency_score already contains correctness (40% via evaluation_score)
+
+# ✅ CLEAN - Do this instead!
+corr(confidence_percent, correctness)
+# Clean: confidence_percent is pure patch similarity, independent of correctness
+```
+
+**For correlation studies, use these independent metrics:**
+
+| Research Question | Consistency Metric | Outcome Metric |
+|-------------------|-------------------|----------------|
+| Does consistency predict correctness? | `confidence_percent` | `resolution_rate` |
+| Does consistency predict security? | `confidence_percent` | `avg_security_score` |
+| Does correctness predict security? | N/A | `resolution_rate` ↔ `avg_security_score` |
+
+**Why `confidence_percent` is better for correlations:**
+- Pure patch similarity (0-100)
+- Does NOT contain correctness or security signals
+- Avoids circular correlation (correlating something with itself)
+- Cleaner interpretation of results
+
+**Example clean correlation analysis:**
+```python
+# Load data
+df = pd.read_csv('consolidated_similarity_scores.csv')
+
+# Independent variables (no overlap!)
+consistency = df['confidence_percent']      # Pure similarity
+correctness = df['resolution_rate']         # Pure pass/fail rate
+security = df['avg_security_score']         # Pure risk assessment
+
+# Clean correlations
+print(f"Consistency ↔ Correctness: {consistency.corr(correctness)}")
+print(f"Consistency ↔ Security: {consistency.corr(security)}")
+print(f"Correctness ↔ Security: {correctness.corr(security)}")
+```
+
+**Bottom line:**
+- **Reporting overall model quality** → Use `overall_consistency_score`
+- **Research correlations** → Use `confidence_percent`
+
 ### Overview: Three Component Scores → One Overall Score
 
 ```
@@ -989,6 +1083,7 @@ overall_consistency_score = (patch_score × 40%) + (evaluation_score × 40%) + (
 ```
 
 **Weights:**
+
 - **Patch consistency**: 40% (most important - measures solution quality)
 - **Evaluation consistency**: 40% (important - measures test pass/fail consistency)
 - **Security consistency**: 20% (less critical - measures security risk consistency)
@@ -1005,10 +1100,12 @@ patch_score = (exact_match_percent × 50%) + (confidence_percent × 50%)
 ```
 
 **Components:**
+
 - `exact_match_rate` (0.0-1.0) → converted to 0-100%, weighted 50%
 - `confidence_percent` (0-100) → weighted 50%
 
 **Example:**
+
 ```python
 exact_match_rate = 0.3333  # 33.33% byte-identical matches
 confidence_percent = 35.57  # 35.57% average hybrid similarity
@@ -1019,6 +1116,7 @@ patch_score = (33.33 × 0.5) + (35.57 × 0.5)
 ```
 
 **Why blend both?**
+
 - `exact_match_rate`: Rewards determinism (identical patches)
 - `confidence_percent`: Rewards semantic similarity (similar but not identical)
 - 50/50 balance: Neither perfect determinism nor pure similarity dominates
@@ -1039,6 +1137,7 @@ else:
 ```
 
 **Logic:**
+
 - **All resolved (100% pass)**: `eval_score = 100` ✅ Consistent success
 - **All failed (0% pass)**: `eval_score = 100` ✅ Consistent failure
 - **Mixed results**: Score based on how far from 50/50 split
@@ -1047,6 +1146,7 @@ else:
   - `resolution_rate = 1.0` (100/0): `eval_score = 100` (perfect consistency)
 
 **Example 1: All tests passed**
+
 ```python
 all_resolved = True
 all_failed = False
@@ -1056,6 +1156,7 @@ eval_score = 100.0  # Perfect consistency
 ```
 
 **Example 2: Mixed results**
+
 ```python
 all_resolved = False
 all_failed = False
@@ -1081,10 +1182,12 @@ else:
 ```
 
 **Logic:**
+
 - Lower variance = higher consistency = higher score
 - Variance capped at 1.0 (scores > 1.0 treated as maximally inconsistent)
 
 **Example 1: Identical security scores**
+
 ```python
 security_scores = [0.0, 0.0, 0.0]  # All "NONE" risk
 score_variance = 0.0
@@ -1094,6 +1197,7 @@ security_score = (1 - 0.0) × 100 = 100.0  # Perfect consistency
 ```
 
 **Example 2: Varying security scores**
+
 ```python
 security_scores = [0.2, 0.5, 0.8]  # LOW, MEDIUM, HIGH risk
 score_variance = 0.09
@@ -1185,6 +1289,7 @@ record = {
 | **0-49** | POOR | High inconsistency, model reliability concerns |
 
 **Key Insight**: The overall score tells you if the model is **reliably producing consistent behavior**, even if the patches differ:
+
 - High eval score (all pass or all fail) = consistent correctness/incorrectness
 - High patch score + high eval score = model produces similar solutions that consistently work
 - Low patch score + high eval score = model explores different solutions, but they all work (creative but reliable)
@@ -1282,6 +1387,7 @@ The individual AST and text metrics are provided for **diagnostic analysis** eve
 | **Unpredictable** | 0.30 | 0.35 | 0.315 | Inconsistent behavior (concerning) |
 
 **Example interpretation:**
+
 ```python
 # Instance with high AST, low text
 avg_ast_similarity = 0.95    # Not directly in overall score - diagnostic
@@ -1294,6 +1400,7 @@ confidence_percent = 89.0    # This feeds into patch_score → overall_score
 ```
 
 **Practical use case:**
+
 ```python
 # Load CSV
 df = pd.read_csv('consolidated_similarity_scores.csv')
