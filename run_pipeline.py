@@ -11,7 +11,11 @@ This script runs all pipeline stages sequentially:
 6. Aggregate results
 
 Usage:
+    # Single run (default)
     python run_pipeline.py --model claude-sonnet-4-20250514 --instances django__django-10914 django__django-11001
+
+    # Multiple runs for consistency checking
+    python run_pipeline.py --model claude-sonnet-4-20250514 --instances django__django-10914 --num-runs 3
 """
 
 import argparse
@@ -85,6 +89,12 @@ def main():
         default=["all"],
         help="Which stages to run (default: all)",
     )
+    parser.add_argument(
+        "--num-runs",
+        type=int,
+        default=1,
+        help="Number of runs per instance (default: 1, recommended for consistency: 3+)",
+    )
 
     args = parser.parse_args()
 
@@ -97,6 +107,7 @@ def main():
     logger.info(f"🚀 Starting pipeline for {len(args.instances)} instances")
     logger.info(f"Model: {args.model}")
     logger.info(f"Instances: {', '.join(args.instances)}")
+    logger.info(f"Runs per instance: {args.num_runs}")
     logger.info(f"Stages to run: {', '.join(stages_to_run)}")
 
     # Create config to determine run directory
@@ -114,6 +125,7 @@ def main():
                 "--split", args.split,
                 "--output-dir", args.output_dir,
                 "--max-tokens", str(args.max_tokens),
+                "--num-runs", str(args.num_runs),
             ]
         )
 

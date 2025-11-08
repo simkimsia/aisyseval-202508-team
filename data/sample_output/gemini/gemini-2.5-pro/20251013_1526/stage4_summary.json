@@ -1,0 +1,28 @@
+{
+  "stage": "4_security_scan",
+  "total_instances": 1,
+  "total_scans": 3,
+  "success": 3,
+  "skipped": 0,
+  "errored": 0,
+  "results": [
+    {
+      "instance_id": "django__django-10914",
+      "run_number": 1,
+      "status": "success",
+      "security_risk_score_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_1/security_risk_score.json"
+    },
+    {
+      "instance_id": "django__django-10914",
+      "run_number": 2,
+      "status": "success",
+      "security_risk_score_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_2/security_risk_score.json"
+    },
+    {
+      "instance_id": "django__django-10914",
+      "run_number": 3,
+      "status": "success",
+      "security_risk_score_path": "output/gemini/gemini-2.5-pro/20251013_1526/django__django-10914/run_3/security_risk_score.json"
+    }
+  ]
+}

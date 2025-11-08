@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 
 from pathlib import Path
 from typing import Dict
@@ -589,17 +590,28 @@ class SecurityScanner:
             },
         }
 
-    def run_security_risk_scorer(self, dataset_id, target_instance) -> Dict:
+    def run_security_risk_scorer(self, dataset_id, target_instance, run_number=None) -> Dict:
         """
         Run security scans and calculate Security Risk Score.
+
+        Args:
+            dataset_id: SWE-bench dataset identifier
+            target_instance: Instance ID to evaluate
+            run_number: Optional run number for multi-run structure
         """
         start_time = time.time()
 
         try:
             logger.info(f"Running security risk scanner evaluation on {self.run_dir}")
             logger.info(f"Configuration: {self.config}")
+            if run_number is not None:
+                logger.info(f"Evaluating run {run_number}")
 
-            patch_path = (Path(self.run_dir) / target_instance / "patch.diff").resolve()
+            # Construct patch path based on run structure
+            if run_number is not None:
+                patch_path = (Path(self.run_dir) / target_instance / f"run_{run_number}" / "patch.diff").resolve()
+            else:
+                patch_path = (Path(self.run_dir) / target_instance / "patch.diff").resolve()
 
             # Load the target instance
             result = self.load_swe_bench_instance(dataset_id, target_instance)
@@ -723,8 +735,11 @@ class SecurityScanner:
             }
 
         except Exception as e:
-            import traceback
-
+            # Remove the tmp_repo directory if it exists
+            tmpdir = Path(self.run_dir) / target_instance / "tmp_repo"
+            if tmpdir.exists():
+                shutil.rmtree(tmpdir)
+            
             logger.error(traceback.format_exc())
             return {
                 "instance_id": target_instance,
@@ -734,6 +749,22 @@ class SecurityScanner:
                 "error": str(e),
                 "security_risk_score_result": None,
             }
+
+
+def _discover_runs(instance_dir: Path) -> list:
+    """Discover all run_N directories for an instance."""
+    runs = []
+    if not instance_dir.exists():
+        return runs
+
+    for item in instance_dir.iterdir():
+        if item.is_dir() and item.name.startswith("run_"):
+            try:
+                run_num = int(item.name.split("_")[1])
+                runs.append(run_num)
+            except (IndexError, ValueError):
+                continue
+    return sorted(runs)
 
 
 def main():
@@ -784,33 +815,101 @@ def main():
     success = 0
     skipped = 0
     errored = 0
+    total_scans = 0
 
     for instance_id in instance_ids:
-        summary = secscanner.run_security_risk_scorer(dataset_id, instance_id)
-        summary_path = run_dir / instance_id / "security_risk_score.json"
-        with open(summary_path, "w") as f:
-            json.dump(summary, f, indent=2)
+        instance_dir = run_dir / instance_id
+        runs = _discover_runs(instance_dir)
 
-        status = summary.get("status", "error")
+        if not runs:
+            # Legacy single-run structure - check if patch.diff exists
+            patch_path = instance_dir / "patch.diff"
+            if not patch_path.exists():
+                logger.warning(f"Skipping {instance_id}: No patch.diff found (likely timeout or failed)")
+                skipped += 1
+                results.append(
+                    {
+                        "instance_id": instance_id,
+                        "run_number": None,
+                        "status": "skipped",
+                        "reason": "No patch.diff found",
+                        "security_risk_score_path": None,
+                    }
+                )
+                continue
 
-        if status == "success":
-            success += 1
-        elif status == "skipped":
-            skipped += 1
+            logger.info(f"Processing {instance_id} (single-run structure)")
+            summary = secscanner.run_security_risk_scorer(dataset_id, instance_id, run_number=None)
+            summary_path = run_dir / instance_id / "security_risk_score.json"
+            with open(summary_path, "w") as f:
+                json.dump(summary, f, indent=2)
+
+            status = summary.get("status", "error")
+            if status == "success":
+                success += 1
+            elif status == "skipped":
+                skipped += 1
+            else:
+                errored += 1
+
+            results.append(
+                {
+                    "instance_id": instance_id,
+                    "run_number": None,
+                    "status": status,
+                    "security_risk_score_path": str(summary_path),
+                }
+            )
+            total_scans += 1
         else:
-            errored += 1
+            # Multi-run structure
+            logger.info(f"Processing {instance_id} with {len(runs)} runs")
+            for run_num in runs:
+                # Check if patch.diff exists for this run
+                patch_path = instance_dir / f"run_{run_num}" / "patch.diff"
+                if not patch_path.exists():
+                    logger.warning(f"Skipping {instance_id} run_{run_num}: No patch.diff found (likely timeout or failed)")
+                    skipped += 1
+                    results.append(
+                        {
+                            "instance_id": instance_id,
+                            "run_number": run_num,
+                            "status": "skipped",
+                            "reason": "No patch.diff found",
+                            "security_risk_score_path": None,
+                        }
+                    )
+                    continue
 
-        results.append(
-            {
-                "instance_id": instance_id,
-                "status": status,
-                "security_risk_score_path": str(summary_path),
-            }
-        )
+                logger.info(f"  Run {run_num} of {len(runs)}")
+                summary = secscanner.run_security_risk_scorer(dataset_id, instance_id, run_number=run_num)
+                summary_path = run_dir / instance_id / f"run_{run_num}" / "security_risk_score.json"
+                summary_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(summary_path, "w") as f:
+                    json.dump(summary, f, indent=2)
+
+                status = summary.get("status", "error")
+                if status == "success":
+                    success += 1
+                elif status == "skipped":
+                    skipped += 1
+                else:
+                    errored += 1
+
+                results.append(
+                    {
+                        "instance_id": instance_id,
+                        "run_number": run_num,
+                        "status": status,
+                        "security_risk_score_path": str(summary_path),
+                    }
+                )
+                total_scans += 1
 
     stage_summary = {
         "stage": "4_security_scan",
         "total_instances": len(instance_ids),
+        "total_scans": total_scans,
         "success": success,
         "skipped": skipped,
         "errored": errored,
@@ -823,9 +922,10 @@ def main():
 
     logger.info(f"\nStage 4 complete! Summary saved to {summary_path}")
 
-    # Exit with error code if any evaluation failed
-    if errored > 0:
-        sys.exit(1)
+    # Continue pipeline even if some security scans failed
+    # This allows subsequent stages to run consistency checks and aggregation
+    # if errored > 0:
+    #     sys.exit(1)
 
 
 if __name__ == "__main__":

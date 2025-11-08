@@ -1,0 +1,4 @@
+instance_id,run_number,resolved,generation_status,evaluation_status,cost,api_calls,generation_time,patch_size,exit_status,error,security_risk_score,security_risk_level,security_scan_status
+django__django-10914,1,True,completed,resolved,0.07745375000000002,16,69.38365602493286,9268,Submitted,,0.0,NONE,success
+django__django-10914,2,True,completed,resolved,0.3212475,43,166.8666911125183,10988,Submitted,,0.0,NONE,success
+django__django-10914,3,True,completed,resolved,0.05341125000000001,9,47.15823316574097,625,Submitted,,0.0,NONE,success

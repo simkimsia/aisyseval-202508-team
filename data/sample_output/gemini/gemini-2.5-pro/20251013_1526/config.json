@@ -1,0 +1,17 @@
+{
+  "model_name": "gemini/gemini-2.5-pro",
+  "provider": "google",
+  "instance_ids": [
+    "django__django-10914"
+  ],
+  "swebench_dataset": "princeton-nlp/SWE-bench_Lite",
+  "swebench_split": "test",
+  "max_tokens": 64000,
+  "cost_limit": 3.0,
+  "step_limit": 250,
+  "max_workers": 1,
+  "timeout": 600,
+  "num_runs": 3,
+  "timestamp": "20251013_1526",
+  "output_dir": "output/gemini/gemini-2.5-pro/20251013_1526"
+}

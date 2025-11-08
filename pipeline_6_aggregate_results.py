@@ -41,6 +41,21 @@ class ResultsAggregator:
         with open(config_path, "r") as f:
             return json.load(f)
 
+    def _discover_runs(self, instance_dir: Path) -> List[int]:
+        """Discover all run_N directories for an instance."""
+        runs = []
+        if not instance_dir.exists():
+            return runs
+
+        for item in instance_dir.iterdir():
+            if item.is_dir() and item.name.startswith("run_"):
+                try:
+                    run_num = int(item.name.split("_")[1])
+                    runs.append(run_num)
+                except (IndexError, ValueError):
+                    continue
+        return sorted(runs)
+
     def _load_stage_summary(self, stage: str) -> Dict:
         """Load summary from a specific stage."""
         summary_path = self.run_dir / f"stage{stage}_summary.json"
@@ -64,70 +79,93 @@ class ResultsAggregator:
             instance_id = instance_dir.name
             logger.info(f"  Processing {instance_id}")
 
-            # Load all files for this instance
-            metadata_path = instance_dir / "metadata.json"
-            evaluation_path = instance_dir / "evaluation.json"
-            patch_path = instance_dir / "patch.diff"
-            security_risk_score_path = instance_dir / "security_risk_score.json"
+            runs = self._discover_runs(instance_dir)
 
-            instance_result = {
-                "instance_id": instance_id,
-                "patch_exists": patch_path.exists(),
-                "patch_size": patch_path.stat().st_size if patch_path.exists() else 0,
-            }
-
-            # Load metadata
-            if metadata_path.exists():
-                with open(metadata_path, "r") as f:
-                    metadata = json.load(f)
-                instance_result.update({
-                    "generation_status": metadata.get("status"),
-                    "cost": metadata.get("cost", 0.0),
-                    "api_calls": metadata.get("api_calls", 0),
-                    "generation_time": metadata.get("elapsed_time", 0.0),
-                    "exit_status": metadata.get("exit_status"),
-                    "error": metadata.get("error"),
-                })
+            if runs:
+                logger.info(f"    Detected multi-run data: {runs}")
+                run_numbers = runs
             else:
-                instance_result.update({
-                    "generation_status": "unknown",
-                    "cost": 0.0,
-                    "api_calls": 0,
-                    "generation_time": 0.0,
-                })
+                # Legacy single-run structure
+                logger.info("    Using legacy single-run layout")
+                run_numbers = [1]
 
-            # Load evaluation
-            if evaluation_path.exists():
-                with open(evaluation_path, "r") as f:
-                    evaluation = json.load(f)
-                instance_result.update({
-                    "evaluation_status": evaluation.get("status"),
-                    "resolved": evaluation.get("resolved", False),
-                })
-            else:
-                instance_result.update({
-                    "evaluation_status": "not_evaluated",
-                    "resolved": False,
-                })
+            for run_number in run_numbers:
+                run_path = instance_dir / f"run_{run_number}" if runs else instance_dir
+                if not run_path.exists():
+                    logger.warning(f"    Missing data for {instance_id} run {run_number}, skipping")
+                    continue
+                metadata_path = run_path / "metadata.json"
+                evaluation_path = run_path / "evaluation.json"
+                patch_path = run_path / "patch.diff"
+                security_risk_score_path = run_path / "security_risk_score.json"
 
-            # Load security risk score
-            if security_risk_score_path.exists():
-                with open(security_risk_score_path, "r") as f:
-                    security_data = json.load(f)
-                security_risk_score_result = security_data.get("security_risk_score_result", {})
-                instance_result.update({
-                    "security_risk_score": security_risk_score_result.get("security_risk_score", None),
-                    "security_risk_level": security_risk_score_result.get("risk_level", "UNKNOWN"),
-                    "security_scan_status": security_data.get("status", "error"),
-                })
-            else:
-                instance_result.update({
+                instance_result = {
+                    "instance_id": instance_id,
+                    "run_number": run_number,
+                    "patch_exists": patch_path.exists(),
+                    "patch_size": patch_path.stat().st_size if patch_path.exists() else 0,
+                }
+
+                # Load metadata
+                if metadata_path.exists():
+                    with open(metadata_path, "r") as f:
+                        metadata = json.load(f)
+                    instance_result.update({
+                        "generation_status": metadata.get("status"),
+                        "cost": metadata.get("cost", 0.0),
+                        "api_calls": metadata.get("api_calls", 0),
+                        "generation_time": metadata.get("elapsed_time", 0.0),
+                        "exit_status": metadata.get("exit_status"),
+                        "error": metadata.get("error"),
+                    })
+                else:
+                    instance_result.update({
+                        "generation_status": "unknown",
+                        "cost": 0.0,
+                        "api_calls": 0,
+                        "generation_time": 0.0,
+                    })
+
+                # Load evaluation
+                if evaluation_path.exists():
+                    with open(evaluation_path, "r") as f:
+                        evaluation = json.load(f)
+                    instance_result.update({
+                        "evaluation_status": evaluation.get("status"),
+                        "resolved": evaluation.get("resolved", False),
+                    })
+                else:
+                    instance_result.update({
+                        "evaluation_status": "not_evaluated",
+                        "resolved": False,
+                    })
+
+                error_result_json = {
                     "security_risk_score": None,
                     "security_risk_level": "UNKNOWN",
                     "security_scan_status": "error",
-                })
+                }
+                # Load security risk score
+                if security_risk_score_path.exists():
+                    with open(security_risk_score_path, "r") as f:
+                        security_data = json.load(f)
+                    print(security_risk_score_path)
 
-            results.append(instance_result)
+
+                    security_risk_score_result = security_data.get("security_risk_score_result", {})
+                    
+                    if not security_risk_score_result:
+                        security_risk_score_result = error_result_json
+
+                    instance_result.update({
+                        "security_risk_score": security_risk_score_result.get("security_risk_score", None),
+                        "security_risk_level": security_risk_score_result.get("risk_level", "UNKNOWN"),
+                        "security_scan_status": security_data.get("status", "error"),
+                    })
+                else:
+                    instance_result.update(error_result_json)
+
+                results.append(instance_result)
 
         return results
 
@@ -140,6 +178,7 @@ class ResultsAggregator:
         stage2 = self._load_stage_summary("2")
         stage3 = self._load_stage_summary("3")
         stage4 = self._load_stage_summary("4")
+        consistency_summary = self._load_consistency_summary()
 
         # Aggregate instance results
         instance_results = self.aggregate_instance_results()
@@ -158,7 +197,32 @@ class ResultsAggregator:
         resolution_rate = (resolved_count / total_instances * 100) if total_instances > 0 else 0
         avg_cost = total_cost / total_instances if total_instances > 0 else 0
         avg_time = total_time / total_instances if total_instances > 0 else 0
+        resolution_rate = round(resolution_rate, 2)
+        avg_resolution_rate = resolution_rate
 
+        max_run_number = max((r.get("run_number", 1) for r in instance_results), default=1)
+        consistency_aggregated_metrics = consistency_summary.get("aggregated_metrics", {}) if consistency_summary else {}
+        grade_distribution = consistency_aggregated_metrics.get("grade_distribution", {})
+        if grade_distribution:
+            consistency_grade_mode = max(grade_distribution.items(), key=lambda item: item[1])[0]
+        else:
+            consistency_grade_mode = None
+        resolved_instances = sorted({r["instance_id"] for r in instance_results if r.get("resolved", False)})
+        unresolved_instances = sorted({
+            r["instance_id"]
+            for r in instance_results
+            if not r.get("resolved", False) and r.get("evaluation_status") != "not_evaluated"
+        })
+        failed_generation_instances = sorted({
+            r["instance_id"]
+            for r in instance_results
+            if r.get("generation_status") in ["error", "timeout"]
+        })
+        failed_security_scan_instances = sorted({
+            r["instance_id"]
+            for r in instance_results
+            if r.get("security_scan_status") == "error"
+        })
         # Create summary
         summary = {
             "run_info": {
@@ -167,13 +231,14 @@ class ResultsAggregator:
                 "output_dir": str(self.run_output_dir),
                 "swebench_dataset": self.config["swebench_dataset"],
                 "swebench_split": self.config["swebench_split"],
+                "num_runs_configured": self.config.get("num_runs", 1),
             },
             "overall_metrics": {
                 "total_instances": total_instances,
                 "resolved": resolved_count,
                 "unresolved": unresolved_count,
                 "not_evaluated": not_evaluated,
-                "resolution_rate_percent": round(resolution_rate, 2),
+                "resolution_rate_percent": avg_resolution_rate,
                 "total_cost_usd": round(total_cost, 4),
                 "avg_cost_per_instance_usd": round(avg_cost, 4),
                 "total_time_seconds": round(total_time, 1),
@@ -187,14 +252,32 @@ class ResultsAggregator:
                 "stage3_run_evaluation": stage3,
                 "stage4_security_scan": stage4,
             },
+            "multi_run_info": {
+                "num_runs": max_run_number,
+                "average_resolution_rate_percent": avg_resolution_rate,
+                "total_cost_all_runs_usd": round(total_cost, 4),
+                "consistency_metrics": consistency_summary,
+                "consistency_grade_mode": consistency_grade_mode,
+                "consistency_grade_distribution": grade_distribution,
+                "avg_overall_consistency_score": consistency_aggregated_metrics.get("avg_overall_consistency_score"),
+            },
             "instance_results": instance_results,
-            "resolved_instances": [r["instance_id"] for r in instance_results if r.get("resolved", False)],
-            "unresolved_instances": [r["instance_id"] for r in instance_results if not r.get("resolved", False) and r.get("evaluation_status") != "not_evaluated"],
-            "failed_generation": [r["instance_id"] for r in instance_results if r.get("generation_status") in ["error", "timeout"]],
-            "failed_security_scan": [r["instance_id"] for r in instance_results if r.get("security_scan_status") == "error"],
+            "resolved_instances": resolved_instances,
+            "unresolved_instances": unresolved_instances,
+            "failed_generation": failed_generation_instances,
+            "failed_security_scan": failed_security_scan_instances,
         }
 
         return summary
+
+    def _load_consistency_summary(self) -> Dict:
+        """Load consistency summary produced by Stage 5 if present."""
+        summary_path = self.run_dir / "consistency_summary.json"
+        if not summary_path.exists():
+            return {}
+
+        with open(summary_path, "r") as f:
+            return json.load(f)
 
     def export_to_csv(self, instance_results: List[Dict], csv_path: Path):
         """Export instance results to CSV."""
@@ -207,6 +290,7 @@ class ResultsAggregator:
         # Define CSV columns
         fieldnames = [
             "instance_id",
+            "run_number",
             "resolved",
             "generation_status",
             "evaluation_status",
@@ -255,7 +339,7 @@ class ResultsAggregator:
         logger.info(f"Model: {summary['run_info']['model_name']}")
         logger.info(f"Timestamp: {summary['run_info']['timestamp']}")
         logger.info(f"\nResults:")
-        logger.info(f"  Total instances: {metrics['total_instances']}")
+        logger.info(f"  Total run records: {metrics['total_instances']}")
         logger.info(f"  ✅ Resolved: {metrics['resolved']} ({metrics['resolution_rate_percent']}%)")
         logger.info(f"  ❌ Unresolved: {metrics['unresolved']}")
         logger.info(f"  ⏭️ Not evaluated: {metrics['not_evaluated']}")

@@ -20,6 +20,7 @@ class ModelProvider(Enum):
     TOGETHER = "together"
     DEEPSEEK = "deepseek"
     UNKNOWN = "unknown"
+    CEREBRAS="cerebras"
 
 
 def detect_provider(model_name: str) -> ModelProvider:
@@ -55,6 +56,8 @@ def detect_provider(model_name: str) -> ModelProvider:
         return ModelProvider.TOGETHER
     if model_lower.startswith("deepseek/"):
         return ModelProvider.DEEPSEEK
+    if model_lower.startswith("cerebras/"):
+        return ModelProvider.CEREBRAS
 
     # Check for common model name patterns (without prefix)
     if model_lower.startswith("claude"):
@@ -90,6 +93,7 @@ def get_api_key_env_var(provider: ModelProvider) -> str:
         ModelProvider.GOOGLE: "GEMINI_API_KEY",
         ModelProvider.TOGETHER: "TOGETHER_API_KEY",
         ModelProvider.DEEPSEEK: "DEEPSEEK_API_KEY",
+        ModelProvider.CEREBRAS: "CEREBRAS_API_KEY",
     }
     return env_var_map.get(provider, "API_KEY")
 
@@ -112,7 +116,9 @@ class PipelineConfig:
     cost_limit: float = 3.0
     step_limit: int = 250
     max_workers: int = 1
-    timeout: int = 600  # seconds per instance
+    timeout: int = 180  # seconds per instance (3 minutes)
+    num_runs: int = 1  # number of runs per instance
+    current_run: Optional[int] = None  # tracks which run is currently executing
 
     # Output configuration
     output_base_dir: Path = Path("output")
@@ -148,13 +154,47 @@ class PipelineConfig:
         """Get the output directory for this specific run."""
         return self.output_base_dir / self.model_name / self.timestamp
 
-    def instance_output_dir(self, instance_id: str) -> Path:
-        """Get the output directory for a specific instance."""
-        return self.run_output_dir / instance_id
+    def instance_output_dir(self, instance_id: str, run_number: Optional[int] = None) -> Path:
+        """
+        Get the output directory for a specific instance.
 
-    def get_output_paths(self, instance_id: str) -> dict:
-        """Get all output file paths for an instance."""
-        instance_dir = self.instance_output_dir(instance_id)
+        Args:
+            instance_id: SWE-bench instance identifier
+            run_number: Optional run number. If provided, returns path with run_N subdirectory
+
+        Returns:
+            Path to instance directory (with or without run_N subdirectory)
+        """
+        base_dir = self.run_output_dir / instance_id
+        if run_number is not None:
+            return base_dir / f"run_{run_number}"
+        return base_dir
+
+    def instance_run_dir(self, instance_id: str, run_number: int) -> Path:
+        """
+        Get the output directory for a specific instance and run number.
+
+        Args:
+            instance_id: SWE-bench instance identifier
+            run_number: Run number (1-indexed)
+
+        Returns:
+            Path to run-specific directory
+        """
+        return self.run_output_dir / instance_id / f"run_{run_number}"
+
+    def get_output_paths(self, instance_id: str, run_number: Optional[int] = None) -> dict:
+        """
+        Get all output file paths for an instance.
+
+        Args:
+            instance_id: SWE-bench instance identifier
+            run_number: Optional run number. If provided, paths will be in run_N subdirectory
+
+        Returns:
+            Dictionary of output file paths
+        """
+        instance_dir = self.instance_output_dir(instance_id, run_number)
         return {
             "instance_dir": instance_dir,
             "patch": instance_dir / "patch.diff",
@@ -169,11 +209,22 @@ class PipelineConfig:
         """Get the path for the run summary file."""
         return self.run_output_dir / "run_summary.json"
 
-    def create_output_dirs(self):
-        """Create all necessary output directories."""
+    def create_output_dirs(self, run_number: Optional[int] = None):
+        """
+        Create all necessary output directories.
+
+        Args:
+            run_number: Optional run number. If provided, creates run_N subdirectories.
+                       If None, creates instance directories without run subdirectories.
+        """
         self.run_output_dir.mkdir(parents=True, exist_ok=True)
         for instance_id in self.instance_ids:
-            self.instance_output_dir(instance_id).mkdir(parents=True, exist_ok=True)
+            if run_number is not None:
+                # Create run-specific directory
+                self.instance_run_dir(instance_id, run_number).mkdir(parents=True, exist_ok=True)
+            else:
+                # Create base instance directory (for backward compatibility)
+                self.instance_output_dir(instance_id).mkdir(parents=True, exist_ok=True)
 
     def get_required_api_key_name(self) -> str:
         """
@@ -220,6 +271,7 @@ class PipelineConfig:
             "step_limit": self.step_limit,
             "max_workers": self.max_workers,
             "timeout": self.timeout,
+            "num_runs": self.num_runs,
             "timestamp": self.timestamp,
             "output_dir": str(self.run_output_dir),
         }
@@ -243,6 +295,8 @@ def create_config_from_args(args) -> PipelineConfig:
     # Override defaults with command line arguments
     if hasattr(args, 'model') and args.model:
         config.model_name = args.model
+        # Re-detect provider after changing model name
+        config.provider = detect_provider(args.model)
     if hasattr(args, 'instances') and args.instances:
         config.instance_ids = args.instances
     if hasattr(args, 'max_tokens') and args.max_tokens:
@@ -261,5 +315,9 @@ def create_config_from_args(args) -> PipelineConfig:
         config.top_p = args.top_p
     if hasattr(args, 'custom_config') and args.custom_config:
         config.custom_config_path = Path(args.custom_config)
+
+    # Add num_runs parameter
+    if hasattr(args, 'num_runs') and args.num_runs:
+        config.num_runs = args.num_runs
 
     return config
